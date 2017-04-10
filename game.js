@@ -17,6 +17,8 @@ var focus_object						//Objekt auf dem die Maus gerade liegt;
 
 //Spielvariablen
 var shop_field = [];
+var rooms = [];							//Array mit allen aktuell existierenden Raimobjekten
+
 
 //Spieldatenbanken
 var existing_wares = []; 				//Liste aller Existierenden Güter und ihrer Eigenschaften
@@ -74,7 +76,7 @@ function Game(){
 				
 				this.upgrade_to_door(tile.funiture);
 			}
-			
+			tile.wall_construcktable();
 		}
 		else if(room.kind_of_room == 1){
 			tile.funiture = new Funiture(room, id, tile);
@@ -175,6 +177,7 @@ function Game(){
 		funiture.finish_action = function(){
 			if(this.action_id == 1){
 				this.action_id = 0;
+				this.parent_tile.status_check();
 			}
 		}
 		
@@ -345,16 +348,14 @@ function Game(){
 	}
 
 	//Erstellt einen Neuen Raum 
-	this.build_new_room = function(new_room_id){
-		var new_room = new Room(rooms.length, new_room_id, this.new_room_member);
-		this.new_room_member[0].highlight_crawler(false);
-		this.new_room_member.forEach(function(object){
+	this.build_room = function(member, new_room_id){
+		var new_room = new Room(rooms.length, new_room_id, member);
+		member.forEach(function(object){
 			object.room = new_room;
 			object.set_room();
 		});
 		rooms.push(new_room);
-			
-		game.windows[actual_window].draw_game_canvas();
+		windows[actual_window].draw_game_canvas();
 	}
 	
 	this.delete_wall = function(tile){

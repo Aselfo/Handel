@@ -131,6 +131,11 @@ function Window_Shop(){
 				game.build_funiture(null, 0, source);
 				head_bar.update_money(-existing_funiture[0][0].price);
 			}
+			source.status_check();
+		}
+		else if(this.construction_mode == 3 && source.action_possible){			
+			game.build_room(source.monitor.member, 1);
+			source.monitor.unhighlight();
 		}
 		else if(this.construction_mode == 4 && source.action_possible){
 			game.delete_wall(source);
