@@ -9,7 +9,11 @@ function Window_Shop(){
 	this.ui_content = [];
 	this.game_content = [];
 	
+	this.construct_room_menue = new Construckt_Room_Menue();
+	
 	this.construction_mode = 0;									//Aktueller Bau Modus (0:nichts 1:Einrichtung 2:Wände 3:Raum 4:Abreisen)
+	this.new_room_id = 0;
+	var menue_open = false;
 	
 	this.init_window = function(){
 		//Initialisieren der Buttons
@@ -61,6 +65,11 @@ function Window_Shop(){
 		}
 		else{
 			var match_found = false;
+			if(menue_open){
+				if(this.construct_room_menue.mouse_over()){
+					match_found = true;
+				}
+			}
 			for(var i = 0; i < (this.ui_content.length + this.game_content.length); i++){
 				if(i < this.ui_content.length){
 					if(this.ui_content[i].mouse_over()){
@@ -134,12 +143,29 @@ function Window_Shop(){
 			source.status_check();
 		}
 		else if(this.construction_mode == 3 && source.action_possible){			
-			game.build_room(source.monitor.member, 1);
+			game.build_room(source.monitor.member, this.new_room_id);
 			source.monitor.unhighlight();
+			this.press_construckt_room_button();
 		}
 		else if(this.construction_mode == 4 && source.action_possible){
-			game.delete_wall(source);
+			if(source.room == null){
+				game.delete_wall(source);
+			}
+			else if(source.funiture == null){
+				game.delete_room(source);
+				source.monitor.unhighlight();
+			}
+			else if(source.funiture != null){
+				
+			}
 		}
+	}
+	
+	this.chose_room = function(id){
+		this.new_room_id = id;
+		this.construction_mode = 3;
+		menue_open = false;
+		this.construct_room_menue.hide_menue();
 	}
 	
 	this.press_construckt_button = function(){
@@ -209,36 +235,17 @@ function Window_Shop(){
 			this.ui_content[3].lock = true;
 			this.ui_content[3].pictur_y = 40;
 			this.ui_content[3].label = "Beenden";
-			this.construction_mode = 3;
-			/*menue_open = true;
-			this.menue_window.set_position(230, 210);
-			this.menue_window.width = 220;
-			this.menue_window.height = 210;
-			this.menue_window.reset_buttons();
-			this.menue_window.sub_parts[0].is_activ = true;
-			this.menue_window.sub_parts[0].id = 5;
-			this.menue_window.sub_parts[0].label = "Lager";
-			this.menue_window.sub_parts[0].mouse_over_text = "Ein Lager für Rohstoffe, Halbfabrikate und Endprodukte. Jedes Geschäft braucht ein Lager.";
-			this.menue_window.sub_parts[1].is_activ = true;
-			this.menue_window.sub_parts[1].id = 6;
-			this.menue_window.sub_parts[1].label = "Schmiede";
-			this.menue_window.sub_parts[1].mouse_over_text = "Eine Schmiede für Waffen, Rüstungen und Metallteile.";
-			this.menue_window.sub_parts[2].is_activ = true;
-			this.menue_window.sub_parts[2].id = 7;
-			this.menue_window.sub_parts[2].label = "Alchemilabor";
-			this.menue_window.sub_parts[2].mouse_over_text = "Ein Laboratorium für Alchemie- und Magiewaren.";
-			this.menue_window.sub_parts[3].is_activ = true;
-			this.menue_window.sub_parts[3].id = 8;
-			this.menue_window.sub_parts[3].label = "Laden";
-			this.menue_window.sub_parts[3].mouse_over_text = "Ein Einzelhandelsladen um Waren an Privatkunden zu verkaufen.";
-			this.menue_window.activate();*/
+			this.construct_room_menue.show_menue();
+			menue_open = true;
+			
 		}
 		else{
 			this.ui_content[3].lock = false;
 			this.ui_content[3].pictur_y = 0;
 			this.ui_content[3].label = "Neuer Raum";
+			this.construction_mode = 1;
 			menue_open = false;
-			this.menue_window.deactivate();
+			this.construct_room_menue.hide_menue();
 			
 		}
 		this.ui_content[3].draw_image();
@@ -263,7 +270,7 @@ function Window_Shop(){
 			this.construction_mode = 1;
 			this.ui_content[4].lock = false;
 			this.ui_content[4].pictur_y = 0;
-			this.ui_content[4].label = "Abreisen";
+			this.ui_content[4].label = "Abreißen";
 		}
 		this.ui_content[4].draw_image();
 	}	

@@ -61,11 +61,17 @@ function Ui_Part(canvas, x, y, width, height, color_id, own_parent){
 	
 	this.activate = function(){
 		this.is_activ = true;
+		for(var i = 0; i < this.sub_parts.length; i++){
+			this.sub_parts[i].is_activ = true;
+		}
 		this.draw_image();
 	}
 	
 	this.deactivate = function(){
 		this.is_activ = false;
+		for(var i = 0; i < this.sub_parts.length; i++){
+			this.sub_parts[i].is_activ = false;
+		}
 		ui_canvas.clearRect(this.x - 1, this.y - 1, this.width+ 2, this.height + 2);
 	}
 }
@@ -233,6 +239,45 @@ function Tooltip(){
 	}
 }
 
+function Construckt_Room_Menue(){
+	//Initalisieren des Popup wahl menü fensters
+	this.menue_window = new Ui_Part(ui_canvas, 0, 0, 220, 210, 0, this);
+	this.menue_window.sub_parts.push(new UI_Button(1, 0, 0, this, "Lager"));
+	this.menue_window.sub_parts[0].mouse_over_text = "Ein Lager für Rohstoffe, Halbfabrikate und Endprodukte. Jedes Geschäft braucht ein Lager.";
+	this.menue_window.sub_parts[0].save_x = 10;
+	this.menue_window.sub_parts[0].save_y = 10;
+	this.menue_window.sub_parts.push(new UI_Button(2, 0, 0, this, "Schmiede"));
+	this.menue_window.sub_parts[1].mouse_over_text = "Eine Schmiede für Waffen, Rüstungen und Metallteile.";
+	this.menue_window.sub_parts[1].save_x = 10;
+	this.menue_window.sub_parts[1].save_y = 60;
+	this.menue_window.sub_parts.push(new UI_Button(3, 0, 0, this, "Alchemilabor"));
+	this.menue_window.sub_parts[2].mouse_over_text = "Ein Laboratorium für Alchemie- und Magiewaren.";
+	this.menue_window.sub_parts[2].save_x = 10;
+	this.menue_window.sub_parts[2].save_y = 110;
+	this.menue_window.sub_parts.push(new UI_Button(4, 0, 0, this, "Laden"));
+	this.menue_window.sub_parts[3].mouse_over_text = "Ein Einzelhandelsladen um Waren an Privatkunden zu verkaufen.";
+	this.menue_window.sub_parts[3].save_x = 10;
+	this.menue_window.sub_parts[3].save_y = 160;
+	this.menue_window.set_position(230, 210);
+	this.menue_window.is_activ = false;
+	
+	this.mouse_over = function(){
+		return this.menue_window.mouse_over();
+	}
+	
+	this.show_menue = function(){
+		this.menue_window.activate();
+	}
+	
+	this.hide_menue = function(){
+		this.menue_window.deactivate();
+	}
+	
+	this.button_click = function(source){
+		windows[0].chose_room(source);
+	}
+}
+
 function Shop_Tile_UI(x, y, border_left, border_top, own_parent, own_back_end){
 	this.x = x * 75 + Math.round(border_left);		//Grafische X Position des Feldes
 	this.y = y * 75 + Math.round(border_top);		//Grafische Y Position des Feldes
@@ -328,6 +373,7 @@ function Shop_Tile(x_cord, y_cord){
 	this.mouse_over = function(){
 		switch(windows[0].construction_mode){
 			case 0: return 1;
+					break;
 			
 			case 1: if(this.room != null && this.funiture == null){
 						return 1;
@@ -336,6 +382,7 @@ function Shop_Tile(x_cord, y_cord){
 						this.action_possible = false;
 						return 2;
 					}
+					break;
 			
 			case 2: if(this.wall_construcktable()){
 						this.action_possible = true;
@@ -345,13 +392,17 @@ function Shop_Tile(x_cord, y_cord){
 						this.action_possible = false;
 						return 2;
 					}
+					break;
+					
 			case 3: return this.room_construcktable();
+					break;
+			
 			case 4: if(this.funiture != null && this.room == null && this.wall_deletable()){
 						this.action_possible = true;
 						return 1;
 					}
-					else if(this.funiture != null && this.room != null && this.room_deletable()){
-						
+					else if(this.funiture == null && this.room != null && this.room_deletable()){
+						return 1;
 					}
 					else{
 						this.action_possible = false;
@@ -397,7 +448,8 @@ function Shop_Tile(x_cord, y_cord){
 				}
 			}
 			else if(this.funiture.id == 0 && this.funiture.action_id == 0){
-				if((this.funiture.top_wall && this.funiture.bot_wall && !this.funiture.left_wall && !this.funiture.right_wall) || (!this.funiture.top_wall && !this.funiture.bot_wall && this.funiture.left_wall && this.funiture.right_wall)){
+				if((this.funiture.top_wall && this.funiture.bot_wall && !this.funiture.left_wall && !this.funiture.right_wall && this.top_tile.funiture.id == 0 && this.bot_tile.funiture.id == 0) ||
+				(!this.funiture.top_wall && !this.funiture.bot_wall && this.funiture.left_wall && this.funiture.right_wall && this.left_tile.funiture.id == 0 && this.right_tile.funiture.id == 0)){
 					return true;
 				}
 				else{
@@ -405,15 +457,59 @@ function Shop_Tile(x_cord, y_cord){
 				}
 			}
 			else if(this.funiture.id == 1 && this.funiture.action_id == 0){
-				if(!this.funiture.door_direction && (this.top_tile == null || this.top_tile.room == null) && (this.bot_tile == null || this.bot_tile.room == null)){
-					return true;
+				if(!this.funiture.door_direction){
+					var monitor_1 = new function(){
+						this.member = [];
+						this.exit_found = false;
+					}
+					var monitor_2 = new function(){
+						this.member = [];
+						this.exit_found = false;
+					}
+					if(this.top_tile != null){
+						this.top_tile.check_path(monitor_1, this);
+					}
+					else{
+						monitor_1.exit_found = true;
+					}
+					if(this.bot_tile != null){
+						this.bot_tile.check_path(monitor_2, this);
+					}
+					else{
+						monitor_2.exit_found = true;
+					}
+					if(monitor_1.exit_found && monitor_2.exit_found){
+						return true;
+					}
+					else{
+						return false;
+					}
 				}
-				else if(this.funiture.door_direction && (this.left_tile == null || this.left_tile.room == null) && (this.right_tile == null || this.right_tile.room == null)){
-					return true;
+				else if(this.funiture.door_direction){
+					var monitor_1 = new function(){
+						this.member = [];
+						this.exit_found = false;
+					}
+					var monitor_2 = new function(){
+						this.member = [];
+						this.exit_found = false;
+					}
+					if(this.left_tile != null){
+						this.left_tile.check_path(monitor_1, this);
+					}
+					else{
+						monitor_1.exit_found = true;
+					}
+					if(this.right_tile != null){
+						this.right_tile.check_path(monitor_2, this);
+					}
+					else{
+						monitor_2.exit_found = true;
+					}
+					if(monitor_1.exit_found && monitor_2.exit_found){
+						return true;
+					}
 				}
-				else{
-					return false;
-				} 
 			}
 			else{
 				return false;
@@ -467,13 +563,28 @@ function Shop_Tile(x_cord, y_cord){
 	}
 	
 	this.wall_deletable = function(){
+		if(typeof focus_object.own_back_end !== 'undefined' && focus_object.own_back_end.monitor != null){
+			focus_object.own_back_end.monitor.unhighlight();
+		}
 		if(!this.outer_wall){
-			if((!this.funiture.top_wall || (this.funiture.top_wall && this.top_tile.funiture.id == 0)) &&
-			   (!this.funiture.bot_wall || (this.funiture.bot_wall && this.bot_tile.funiture.id == 0)) &&
-			   (!this.funiture.left_wall || (this.funiture.left_wall && this.left_tile.funiture.id == 0)) &&
-			   (!this.funiture.right_wall || (this.funiture.right_wall && this.right_tile.funiture.id == 0))){
-				   return true;
+			if(this.funiture.id == 1 && this.try_fuse_rooms()){
+				return true;
 			}
+			else if(this.funiture.id == 0){
+				if((!this.funiture.top_wall || (this.funiture.top_wall && this.top_tile.funiture.id == 0)) &&
+				   (!this.funiture.bot_wall || (this.funiture.bot_wall && this.bot_tile.funiture.id == 0)) &&
+				   (!this.funiture.left_wall || (this.funiture.left_wall && this.left_tile.funiture.id == 0)) &&
+				   (!this.funiture.right_wall || (this.funiture.right_wall && this.right_tile.funiture.id == 0)) && this.try_fuse_rooms()){
+					return true;
+				}
+				else{
+					return false;
+				}
+			}
+			else{
+				return false;
+			}
+			
 		}
 		else{
 			return false;
@@ -481,13 +592,22 @@ function Shop_Tile(x_cord, y_cord){
 	}
 	
 	this.room_deletable = function(){
-		var empty = true;
-		this.room.member.forEach(function(i){
-			if(i.funiture != null){
-				empty = false;
+		var monitor = new function(){
+						      this.member = [];
+							  this.room_empty = true;
+							  
+							  this.unhighlight = function(){
+							   this.member.forEach(function(i){i.unhighlight()});
+							  }
+						  }
+		this.check_area_deletable(monitor);
+		for(tile in monitor.member){
+			monitor.member[tile].highlight(monitor.room_empty);
+			if(monitor.room_empty){
+				monitor.member[tile].action_possible = true;
 			}
-		})
-		return empty;
+		}
+		return monitor.room_empty;
 	}
 	
 	this.check_area = function(monitor, in_room){
@@ -648,6 +768,28 @@ function Shop_Tile(x_cord, y_cord){
 		}
 	}
 	
+	this.check_area_deletable = function(monitor){
+		if(!monitor.member.includes(this)){
+			this.monitor = monitor;
+			monitor.member.push(this);
+			if(this.funiture != null){
+				monitor.room_empty = false;
+			}
+			if(this.top_tile.room != null){
+				this.top_tile.check_area_deletable(monitor);
+			}
+			if(this.bot_tile.room != null){
+				this.bot_tile.check_area_deletable(monitor);
+			}
+			if(this.left_tile.room != null){
+				this.left_tile.check_area_deletable(monitor);
+			}
+			if(this.right_tile.room != null){
+				this.right_tile.check_area_deletable(monitor);
+			}
+		}
+	}
+	
 	this.check_wall_compleat = function(top_wall, bot_wall, left_wall, right_wall){
 		if(top_wall && !bot_wall && left_wall && right_wall){
 			if(this.top_tile.right_tile.room == null && this.top_tile.right_tile.funiture != null && this.top_tile.right_tile.funiture.id == 0 &&
@@ -719,6 +861,95 @@ function Shop_Tile(x_cord, y_cord){
 		}
 		else{
 			return true;
+		}
+	}
+	
+	this.try_fuse_rooms = function(){
+		var connected_rooms = [];
+		var top_room;
+		var bot_room;
+		var left_room;
+		var right_room;
+		
+		if(!this.funiture.top_wall){
+			connected_rooms.push(this.top_tile.room);
+			top_room = this.top_tile.room;
+		}
+		if(!this.funiture.bot_wall){
+			connected_rooms.push(this.bot_tile.room);
+			bot_room = this.bot_tile.room;
+		}
+		if(!this.funiture.left_wall){
+			connected_rooms.push(this.left_tile.room);
+			left_room = this.left_tile.room;
+		}
+		if(!this.funiture.right_wall){
+			connected_rooms.push(this.right_tile.room);
+			right_room = this.right_tile.room;
+		}
+		
+		if(connected_rooms.length == 4){
+			return true;
+		}
+		else if(connected_rooms.length == 2 && !((this.funiture.top_wall && this.funiture.bot_wall) || (this.funiture.left_wall && this.funiture.right_wall))){
+			if(this.funiture.top_wall && this.funiture.right_wall && this.bot_tile.room == null && this.right_tile.top_tile.room == null){
+				return true;
+			}
+			else if(this.funiture.right_wall && this.funiture.bot_wall && this.left_tile.room == null && this.right_tile.bot_tile.room == null){
+				return true;
+			}
+			else if(this.funiture.bot_wall && this.funiture.left_wall && this.top_tile.room == null && this.bot_tile.left_tile.room == null){
+				return true;
+			}
+			else if(this.funiture.left_wall && this.funiture.top_wall && this.right_tile.room == null && this.left_tile.top_tile.room == null){
+				return true;
+			}
+			else{
+				return false;
+			}
+		}
+		else{
+			var room
+			for(var i = 0; i < connected_rooms.length; i++){
+				if(connected_rooms[i] != null){
+					room = connected_rooms[i];
+					break;
+				}
+			}
+			if(room != null){
+				var fuse = true;
+				for(var i = 0; i < connected_rooms.length; i++){
+					if(connected_rooms[i] != room && connected_rooms[i] != null){
+						fuse = false;
+					}
+				}
+				return fuse;
+			}
+			else{
+				return true;
+			}
+		}
+	}
+	
+	this.check_path = function(monitor, forbidden_tile){
+		if(!monitor.member.includes(this)){
+			monitor.member.push(this);
+			if(this.outer_wall && this.funiture.id == 1){
+				monitor.exit_found = true;
+			}
+			
+			if(this.top_tile != null && this.top_tile != forbidden_tile && !(this.top_tile.room == null && this.top_tile.funiture != null && this.top_tile.funiture.id == 0)){
+				this.top_tile.check_path(monitor, forbidden_tile);
+			}
+			if(this.bot_tile != null && this.bot_tile != forbidden_tile && !(this.bot_tile.room == null && this.bot_tile.funiture != null && this.bot_tile.funiture.id == 0)){
+				this.bot_tile.check_path(monitor, forbidden_tile);
+			}
+			if(this.left_tile != null && this.left_tile != forbidden_tile && !(this.left_tile.room == null && this.left_tile.funiture != null && this.left_tile.funiture.id == 0)){
+				this.left_tile.check_path(monitor, forbidden_tile);
+			}
+			if(this.right_tile != null && this.right_tile != forbidden_tile && !(this.right_tile.room == null && this.right_tile.funiture != null && this.right_tile.funiture.id == 0)){
+				this.right_tile.check_path(monitor, forbidden_tile);
+			}
 		}
 	}
 	

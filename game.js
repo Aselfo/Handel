@@ -358,31 +358,69 @@ function Game(){
 		windows[actual_window].draw_game_canvas();
 	}
 	
+	//Löscht eine Wand
 	this.delete_wall = function(tile){
+		var room = null;
 		if(tile.funiture.top_wall){
 			tile.top_tile.funiture.bot_wall = false;
 			tile.top_tile.funiture.chose_wall_picture();
+		}
+		else{
+			if(tile.top_tile.room != null){
+				room = tile.top_tile.room;
+			}
 		}
 		if(tile.funiture.bot_wall){
 			tile.bot_tile.funiture.top_wall = false;
 			tile.bot_tile.funiture.chose_wall_picture();
 		}
+		else{
+			if(tile.bot_tile.room != null){
+				room = tile.bot_tile.room;
+			}
+		}
 		if(tile.funiture.left_wall){
 			tile.left_tile.funiture.right_wall = false;
 			tile.left_tile.funiture.chose_wall_picture();
+		}
+		else{
+			if(tile.left_tile.room != null){
+				room = tile.left_tile.room;
+			}
 		}
 		if(tile.funiture.right_wall){
 			tile.right_tile.funiture.left_wall = false;
 			tile.right_tile.funiture.chose_wall_picture();
 		}
-		
-		if(tile.funiture.id == 0){
-			tile.funiture = null;
-			tile.own_ui.draw_image();
-		}
 		else{
-			
+			if(tile.right_tile.room != null){
+				room = tile.right_tile.room;
+			}
 		}
+		
+		tile.funiture = null;
+		if(room != null){
+			tile.room_construcktable();
+			room.member = tile.monitor.member;
+			room.member.forEach(function(object){
+				object.room = room;
+				object.set_room();
+				object.unhighlight();
+			});
+		}
+		tile.own_ui.draw_image();
+	}
+
+	//Löscht einen Raum
+	this.delete_room = function(tile){
+		tile.room.delete_itself();
+		var array = [];
+		for(var i = 0; i < rooms.length; i++){
+			if(tile.room != rooms[i]){
+				array.push(rooms[i]);
+			}
+		}
+		rooms = array;
 	}
 }
 
