@@ -17,4 +17,12 @@ function Head_Bar(){
 		ui_canvas.drawImage(image_repository.head_bar_background, 170, 20, 100, 20 ,170, 20, 100, 20);
 		ui_canvas.fillText(money+"$", 170, 35);
 	}
+	
+	this.update_workforce = function(change){
+		workforce += change;
+		ui_canvas.clearRect(280, 20 ,100, 20);
+		ui_canvas.font = "bold 14px Arial";
+		ui_canvas.drawImage(image_repository.head_bar_background, 280, 20 ,100, 20 ,280, 20 ,100, 20);
+		ui_canvas.fillText("Arbeiter: " + free_worker + "/" + workforce, 280, 35);
+	}
 }

@@ -9,7 +9,7 @@ function Window_Shop(){
 	this.ui_content = [];
 	this.game_content = [];
 	
-	this.construct_room_menue = new Construckt_Room_Menue();
+	this.construct_menue = new Construckt_Menue();
 	
 	this.construction_mode = 0;									//Aktueller Bau Modus (0:nichts 1:Einrichtung 2:Wände 3:Raum 4:Abreisen)
 	this.new_room_id = 0;
@@ -28,13 +28,13 @@ function Window_Shop(){
 		this.ui_content[3].mouse_over_text = "Eine Neuen Raum setzen. Ein Raum braucht eine durchgehende Wand und einen direckten oder indirecken(je nach Raum) Pfand zu einem Ausgang(Tür in der Außenwand). ";
 		this.ui_content[4] = new UI_Button(4, 20, 270, this, "Abreißen");
 		this.ui_content[4].mouse_over_text = "Einrichtung, Räume und Wände wieder abreißen";
-		this.ui_content[5] = new UI_Button(12, 980, 70, this, "Lager");
+		this.ui_content[5] = new UI_Button(5, 980, 70, this, "Lager");
 		this.ui_content[5].is_activ = true;
-		this.ui_content[6] = new UI_Button(13, 980, 120, this, "Markt");
+		this.ui_content[6] = new UI_Button(6, 980, 120, this, "Markt");
 		this.ui_content[6].is_activ = true;
-		this.ui_content[7] = new UI_Button(14, 20, 470, this, "Arbeiter Einstellen 100$");
+		this.ui_content[7] = new UI_Button(7, 20, 470, this, "Arbeiter Einstellen 100$");
 		this.ui_content[7].is_activ = true;
-		this.ui_content[8] = new UI_Button(15, 20, 520, this, "Arbeiter Entlassen");
+		this.ui_content[8] = new UI_Button(8, 20, 520, this, "Arbeiter Entlassen");
 		this.ui_content[8].is_activ = true;
 	}
 	
@@ -66,21 +66,23 @@ function Window_Shop(){
 		else{
 			var match_found = false;
 			if(menue_open){
-				if(this.construct_room_menue.mouse_over()){
+				if(this.construct_menue.mouse_over()){
 					match_found = true;
 				}
 			}
-			for(var i = 0; i < (this.ui_content.length + this.game_content.length); i++){
-				if(i < this.ui_content.length){
-					if(this.ui_content[i].mouse_over()){
-						match_found = true;
-						break;
+			if(!match_found){
+				for(var i = 0; i < (this.ui_content.length + this.game_content.length); i++){
+					if(i < this.ui_content.length){
+						if(this.ui_content[i].mouse_over()){
+							match_found = true;
+							break;
+						}
 					}
-				}
-				else{
-					if(this.game_content[i - this.ui_content.length].mouse_over()){
-						match_found = true;
-						break;
+					else{
+						if(this.game_content[i - this.ui_content.length].mouse_over()){
+							match_found = true;
+							break;
+						}
 					}
 				}
 			}
@@ -122,41 +124,52 @@ function Window_Shop(){
 					
 			case 4: this.press_delet_button();
 					 break;
-					 
+			
+			case 5: switch_window(1);
+					break;
+			
+			case 6: switch_window(2);
+					break;
 		}
 	}
 	
 	this.tile_click = function(source){
-		if(this.construction_mode == 2 && source.action_possible){
-			if(source.funiture == null){
-				game.build_funiture(null, 0, source);
-				head_bar.update_money(-existing_funiture[0][0].price);
+		if(!menue_open){
+			if(this.construction_mode == 1 && source.action_possible){
+				this.construct_menue.show_funiture_menue(source, mpos_x, mpos_y);
+				menue_open = true;
 			}
-			else if(source.funiture.id == 0){
-				game.build_funiture(null, 1, source);
-				head_bar.update_money(-existing_funiture[0][1].price);
+			else if(this.construction_mode == 2 && source.action_possible){
+				if(source.funiture == null){
+					game.build_funiture(null, 0, source);
+					head_bar.update_money(-existing_funiture[0][0].price);
+				}
+				else if(source.funiture.id == 0){
+					game.build_funiture(null, 1, source);
+					head_bar.update_money(-existing_funiture[0][1].price);
+				}
+				else{
+					game.build_funiture(null, 0, source);
+					head_bar.update_money(-existing_funiture[0][0].price);
+				}
+				source.status_check();
 			}
-			else{
-				game.build_funiture(null, 0, source);
-				head_bar.update_money(-existing_funiture[0][0].price);
-			}
-			source.status_check();
-		}
-		else if(this.construction_mode == 3 && source.action_possible){			
-			game.build_room(source.monitor.member, this.new_room_id);
-			source.monitor.unhighlight();
-			this.press_construckt_room_button();
-		}
-		else if(this.construction_mode == 4 && source.action_possible){
-			if(source.room == null){
-				game.delete_wall(source);
-			}
-			else if(source.funiture == null){
-				game.delete_room(source);
+			else if(this.construction_mode == 3 && source.action_possible){			
+				game.build_room(source.monitor.member, this.new_room_id);
 				source.monitor.unhighlight();
+				this.press_construckt_room_button();
 			}
-			else if(source.funiture != null){
-				
+			else if(this.construction_mode == 4 && source.action_possible){
+				if(source.room == null){
+					game.delete_wall(source);
+				}
+				else if(source.funiture == null){
+					game.delete_room(source);
+					source.monitor.unhighlight();
+				}
+				else if(source.funiture != null){
+					
+				}
 			}
 		}
 	}
@@ -165,7 +178,14 @@ function Window_Shop(){
 		this.new_room_id = id;
 		this.construction_mode = 3;
 		menue_open = false;
-		this.construct_room_menue.hide_menue();
+		this.construct_menue.hide_menue();
+	}
+	
+	this.chose_funiture = function(id, tile){
+		game.build_funiture(tile.room, id-1, tile);
+		head_bar.update_money(-existing_funiture[tile.room.kind_of_room][id-1].price);
+		menue_open = false;
+		this.construct_menue.hide_menue();
 	}
 	
 	this.press_construckt_button = function(){
@@ -196,6 +216,10 @@ function Window_Shop(){
 			if(this.ui_content[4].lock){
 				this.press_delet_button();
 			}
+			if(menue_open){
+				this.construct_menue.hide_menue();
+				menue_open = false;
+			}
 		}
 		this.ui_content[1].draw_image();
 	}
@@ -209,6 +233,10 @@ function Window_Shop(){
 			}
 			if(this.ui_content[4].lock){
 				this.press_delet_button();
+			}
+			if(menue_open){
+				this.construct_menue.hide_menue();
+				menue_open = false;
 			}
 			this.construction_mode = 2;
 			this.ui_content[2].lock = true;
@@ -232,10 +260,14 @@ function Window_Shop(){
 			if(this.ui_content[4].lock){
 				this.press_delet_button();
 			}
+			if(menue_open){
+				this.construct_menue.hide_menue();
+				menue_open = false;
+			}
 			this.ui_content[3].lock = true;
 			this.ui_content[3].pictur_y = 40;
 			this.ui_content[3].label = "Beenden";
-			this.construct_room_menue.show_menue();
+			this.construct_menue.show_room_menue();
 			menue_open = true;
 			
 		}
@@ -245,7 +277,7 @@ function Window_Shop(){
 			this.ui_content[3].label = "Neuer Raum";
 			this.construction_mode = 1;
 			menue_open = false;
-			this.construct_room_menue.hide_menue();
+			this.construct_menue.hide_menue();
 			
 		}
 		this.ui_content[3].draw_image();
@@ -260,6 +292,10 @@ function Window_Shop(){
 				this.press_construckt_room_button();
 				this.construction_mode = 1;
 				this.new_room_id = 0;
+			}
+			if(menue_open){
+				this.construct_menue.hide_menue();
+				menue_open = false;
 			}
 			this.construction_mode = 4;
 			this.ui_content[4].lock = true;

@@ -18,18 +18,20 @@ var focus_object						//Objekt auf dem die Maus gerade liegt;
 //Spielvariablen
 var shop_field = [];
 var rooms = [];							//Array mit allen aktuell existierenden Raimobjekten
-
+var storage = [];						//Array der Lagerstacks
 
 //Spieldatenbanken
 var existing_wares = []; 				//Liste aller Existierenden Güter und ihrer Eigenschaften
 var existing_funiture = []				//Liste aller Existierenden Einrichtungsgegenständen und ihrer Eigenschaften
 
 var money = 0;							//Momentan vorhandenes Geld
+var workforce = 0;
+var free_worker = 0;
 
 //----------------------------Mouse Listener--------------------------------------------
 //Funktion die aufgerufen wird wenn sich die Maus innerhalb des Wrappers bewegt.
 var mouse_over_listener = function(event){
-	if(actual_window){
+	if(actual_window > 0){
 		var rect = event.target.getBoundingClientRect();
 		mpos_x = event.clientX - rect.left;
 		mpos_y = event.clientY - rect.top;
@@ -73,21 +75,26 @@ function Game(){
 				this.upgrade_to_wall(tile.funiture);
 			}
 			else{
-				
 				this.upgrade_to_door(tile.funiture);
 			}
 			tile.wall_construcktable();
 		}
 		else if(room.kind_of_room == 1){
 			tile.funiture = new Funiture(room, id, tile);
+			tile.funiture.pictur_x = id * 75
+			tile.funiture.pictur_y = room.kind_of_room * 75;
 			this.upgrade_to_storage(tile.funiture);
 		}
-		else if(room.kind_of_room > 1 && room.kind_of_room < 3){
+		else if(room.kind_of_room > 1 && room.kind_of_room < 4){
 			tile.funiture = new Funiture(room, id, tile);
+			tile.funiture.pictur_x = id * 75
+			tile.funiture.pictur_y = room.kind_of_room * 75;
 			this.upgrade_to_production(tile.funiture);
 		}
-		else if(room.kind_of_room == 3){
+		else if(room.kind_of_room == 4){
 			tile.funiture = new Funiture(room, id, tile);
+			tile.funiture.pictur_x = id * 75
+			tile.funiture.pictur_y = room.kind_of_room * 75;
 			this.upgrade_to_shop(tile.funiture);
 		}
 		
@@ -138,6 +145,7 @@ function Game(){
 				}
 				else  if(this.id == 1){
 					this.pictur_x = 825;
+					funiture.door_direction = false;
 				}
 			}
 			else if(this.top_wall || this.bot_wall){
@@ -146,6 +154,7 @@ function Game(){
 				}
 				else if(this.id == 1){
 					this.pictur_x = 900;
+					funiture.door_direction = true;
 				}
 			}
 			else if(!this.top_wall && !this.bot_wall && !this.left_wall && !this.right_wall){
@@ -227,6 +236,16 @@ function Game(){
 		for(var i = 0; i < existing_funiture[funiture.room.kind_of_room][funiture.id].craftable_wares[0]; i++){
 			var stack = new Ware_Stack(funiture, existing_funiture[funiture.room.kind_of_room][funiture.id].craftable_wares[1]);
 			funiture.storag_stacks.push(stack);
+		}
+		funiture.finish_action = function(){
+			if(this.action_id == 1){
+				this.action_id = 0;
+				this.parent_tile.status_check();
+				game.finish_construction(this);
+			}
+		}
+		if(actual_window != 0){
+			windows[actual_window].draw_ui_canvas();
 		}
 	}
 		
@@ -319,6 +338,7 @@ function Game(){
 		funiture.finish_action = function(){
 			if(this.action_id == 1){
 				this.action_id = 0;
+				this.parent_tile.status_check();
 			}
 			else if(this.action_id == 2){
 				if(game.store_ware(this.new_product.id, 1)){
@@ -347,6 +367,51 @@ function Game(){
 		}
 	}
 
+	this.set_funiture = function(room, id, tile){
+		if(room == null){
+			if(id == 0){
+				tile.funiture = new Funiture(room, id, tile);
+				this.upgrade_to_wall(tile.funiture);
+			}
+			else{
+				tile.funiture = new Funiture(room, id, tile);
+				this.upgrade_to_wall(tile.funiture);
+				this.upgrade_to_door(tile.funiture);
+			}
+		}
+		else if(room == 1){
+			tile.funiture = new Funiture(null, id, tile);
+			tile.funiture.pictur_x = id * 75
+			tile.funiture.pictur_y = room * 75;
+			this.upgrade_to_storage(tile.funiture);
+		}
+		else if(room > 1 && room < 4){
+			tile.funiture = new Funiture(null, id, tile);
+			tile.funiture.pictur_x = id * 75
+			tile.funiture.pictur_y = room * 75;
+			this.upgrade_to_production(tile.funiture);
+		}
+		else if(room == 4){
+			tile.funiture = new Funiture(null, id, tile);
+			tile.funiture.pictur_x = id * 75
+			tile.funiture.pictur_y = room * 75;
+			this.upgrade_to_shop(tile.funiture);
+		}
+		tile.funiture.action_id = 0;
+		tile.funiture.time_left = 0;
+		tile.own_ui.draw_image();
+	}
+	
+	//Aktiviert Seiteneffecte von Funitur nach vertigstellung wenn sie welche besitzen
+	this.finish_construction = function(source){
+		if(source.room.kind_of_room == 1){
+			storage = storage.concat(source.storag_stacks);
+			if(actual_window != 0){
+				game.draw_window();
+			}
+		}
+	}
+	
 	//Erstellt einen Neuen Raum 
 	this.build_room = function(member, new_room_id){
 		var new_room = new Room(rooms.length, new_room_id, member);
@@ -424,6 +489,12 @@ function Game(){
 	}
 }
 
+//wechselt zwischen verschiedenen fenstern
+function switch_window(window_id){
+	actual_window = window_id;
+	game.draw_window();
+}
+
 //Erstellt die Liste aller Existierender Waren
 /*function define_existing_wares(){
 	existing_wares[0] = [];
@@ -463,7 +534,7 @@ function define_existing_funiture(){
 	existing_funiture[2] = []
 	existing_funiture[2][0] = new Funiture_Data("Ambos", "Ein Schmiedeambos für Metalarbeiten", 50, 5, ["100","200","201"]);
 	existing_funiture[3] = []
-	existing_funiture[3][0] = new Funiture_Data("Labortisch", "Ein Labortisch zum Tränke brauen", 50, 5, ["500","501","502","503"]);
+	existing_funiture[3][0] = new Funiture_Data("Labortisch", "Ein Labortisch zum Tränke brauen", 50, 300, ["500","501","502","503"]);
 	existing_funiture[4] = []
 	existing_funiture[4][0] = new Funiture_Data("Aussteller", "Ein Tisch um Waren zum verkauf auszustellen", 50, 5, []);
 }
@@ -472,7 +543,7 @@ function define_existing_funiture(){
 function load_data(){
 	var save_data = document.cookie;
 	//Wenn keine Daten vorhanden dann default start zustand
-	if(save_data == ""){
+	if(true){
 		var sice_x = 7;
 		var sice_y = 6;
 			
@@ -518,17 +589,91 @@ function load_data(){
 				}
 				
 				if(wall){
-					game.build_funiture(null, 0, shop_field[i * sice_x + j]);
-					shop_field[i * sice_x + j].funiture.action_id = 0;
-					shop_field[i * sice_x + j].funiture.time_left = 0;
+					game.set_funiture(null, 0, shop_field[i * sice_x + j]);
 				}
-				
 			}
 		}
 		head_bar.update_money(1000);
 	}
 	//Ansonsten Daten aus Cookie laden
 	else{
+		var sice_x = 7;
+		var sice_y = 6;
+			
+		//Rand der auf den Seiten des Spielfelds bleibt berechnen
+		var border_left = (1200-sice_x*75)/2;
+		if(border_left < 0){
+			border_left = 0;
+		}
+		var border_top = (590-sice_y*75)/2;
+		if(border_top < 0){
+			border_top = 0;
+		}
+		save_data = save_data.split(":");
+		head_bar.update_money(parseInt(save_data[0]));
+		head_bar.update_workforce(parseInt(save_data[1]));
+		
+		var room_data = save_data[2].split("|");
+		var room_member = [];
+		for(i in room_data){
+			room_member[i] = [];
+		}
+		
+		var all_field_data = save_data[3].split("|");
+		var x = 0;
+		var y = 0;
+		for(i in all_field_data){
+			var field_data = all_field_data[i].split(",");
+			for(j in field_data){
+				if(field_data[j] != ""){
+					field_data[j] = parseInt(field_data[j]);
+				}
+				else{
+					field_data[j] = null;
+				}
+			}
+			
+			shop_field[i] = new Shop_Tile(x, y);
+			windows[0].game_content[i] = new Shop_Tile_UI(x, y, border_left, border_top, windows[0], shop_field[i]);
+			shop_field[i].own_ui = windows[0].game_content[i];
+			if(y != 0){	
+				shop_field[i].top_tile = shop_field[(y - 1) * sice_x + x];
+				shop_field[(y - 1) * sice_x + x].bot_tile = shop_field[i];
+				if(y == (sice_y - 1)){
+					shop_field[y * sice_x + x].outer_wall = true;
+				}
+			}
+			else{
+				shop_field[i].outer_wall = true;
+			}
+			if(x != 0){
+				shop_field[i].left_tile = shop_field[i-1];
+				shop_field[i-1].right_tile = shop_field[i];
+				if(x == (sice_x - 1)){
+					shop_field[i].outer_wall = true;
+				}
+			}
+			else{
+				shop_field[i].outer_wall = true;
+			}
+			if(field_data[0] != null){
+				room_member[field_data[0]].push(shop_field[i]);
+			}
+			if(field_data[1] != null){
+				game.set_funiture(room_data[field_data[0]], field_data[1], shop_field[i]);
+				shop_field[i].funiture.action_id = field_data[2];
+				shop_field[i].funiture.time_left = field_data[3];
+			}
+			x++;
+			if(x == sice_x){
+				x = 0;
+				y++;
+			}
+		}
+		
+		for(i in room_data){
+			game.build_room(room_member[i], room_data[i]);
+		}
 	}
 }
 
@@ -569,5 +714,28 @@ function init(){
 }
 
 function close_game(){
-	
+	var cookie = money + ":" + workforce + ":";
+	for(var i = 0; i < rooms.length; i++){
+		cookie = cookie + rooms[i].kind_of_room + "|";
+	}
+	if(rooms.length > 0){
+		cookie = cookie.slice(0, -1);
+	}
+	cookie = cookie + ":";
+	for(var i = 0; i < shop_field.length; i++){
+		if(shop_field[i].room != null){
+			cookie = cookie + shop_field[i].room.id + ",";
+		}
+		else{
+			cookie = cookie + ",";
+		}
+		if(shop_field[i].funiture != null){
+			cookie = cookie + shop_field[i].funiture.id + "," + shop_field[i].funiture.action_id + "," + shop_field[i].funiture.time_left;
+		}
+		cookie = cookie + "|";
+	}
+	cookie = cookie.slice(0, -1);
+	cookie = cookie + "; expires=Thu, 18 Dec 2020 12:00:00 UTC";
+	console.log(cookie);
+	document.cookie = cookie;
 }

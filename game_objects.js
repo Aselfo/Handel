@@ -62,7 +62,9 @@ function Ui_Part(canvas, x, y, width, height, color_id, own_parent){
 	this.activate = function(){
 		this.is_activ = true;
 		for(var i = 0; i < this.sub_parts.length; i++){
-			this.sub_parts[i].is_activ = true;
+			if(this.sub_parts[i].label != ""){
+				this.sub_parts[i].is_activ = true;
+			}
 		}
 		this.draw_image();
 	}
@@ -239,23 +241,22 @@ function Tooltip(){
 	}
 }
 
-function Construckt_Room_Menue(){
+function Construckt_Menue(){
+	var room_or_funiture;
+	var tile_backup;
+	
 	//Initalisieren des Popup wahl menü fensters
 	this.menue_window = new Ui_Part(ui_canvas, 0, 0, 220, 210, 0, this);
-	this.menue_window.sub_parts.push(new UI_Button(1, 0, 0, this, "Lager"));
-	this.menue_window.sub_parts[0].mouse_over_text = "Ein Lager für Rohstoffe, Halbfabrikate und Endprodukte. Jedes Geschäft braucht ein Lager.";
+	this.menue_window.sub_parts.push(new UI_Button(1, 0, 0, this, ""));
 	this.menue_window.sub_parts[0].save_x = 10;
 	this.menue_window.sub_parts[0].save_y = 10;
-	this.menue_window.sub_parts.push(new UI_Button(2, 0, 0, this, "Schmiede"));
-	this.menue_window.sub_parts[1].mouse_over_text = "Eine Schmiede für Waffen, Rüstungen und Metallteile.";
+	this.menue_window.sub_parts.push(new UI_Button(2, 0, 0, this, ""));
 	this.menue_window.sub_parts[1].save_x = 10;
 	this.menue_window.sub_parts[1].save_y = 60;
-	this.menue_window.sub_parts.push(new UI_Button(3, 0, 0, this, "Alchemilabor"));
-	this.menue_window.sub_parts[2].mouse_over_text = "Ein Laboratorium für Alchemie- und Magiewaren.";
+	this.menue_window.sub_parts.push(new UI_Button(3, 0, 0, this, ""));
 	this.menue_window.sub_parts[2].save_x = 10;
 	this.menue_window.sub_parts[2].save_y = 110;
-	this.menue_window.sub_parts.push(new UI_Button(4, 0, 0, this, "Laden"));
-	this.menue_window.sub_parts[3].mouse_over_text = "Ein Einzelhandelsladen um Waren an Privatkunden zu verkaufen.";
+	this.menue_window.sub_parts.push(new UI_Button(4, 0, 0, this, ""));
 	this.menue_window.sub_parts[3].save_x = 10;
 	this.menue_window.sub_parts[3].save_y = 160;
 	this.menue_window.set_position(230, 210);
@@ -265,8 +266,35 @@ function Construckt_Room_Menue(){
 		return this.menue_window.mouse_over();
 	}
 	
-	this.show_menue = function(){
+	this.show_room_menue = function(){
+		this.menue_window.sub_parts[0].label = "Lager";
+		this.menue_window.sub_parts[0].mouse_over_text = "Ein Lager für Rohstoffe, Halbfabrikate und Endprodukte. Jedes Geschäft braucht ein Lager.";
+		this.menue_window.sub_parts[1].label = "Schmiede";
+		this.menue_window.sub_parts[1].mouse_over_text = "Eine Schmiede für Waffen, Rüstungen und Metallteile.";
+		this.menue_window.sub_parts[2].label = "Alchemilabor";
+		this.menue_window.sub_parts[2].mouse_over_text = "Ein Laboratorium für Alchemie- und Magiewaren.";
+		this.menue_window.sub_parts[3].label = "Laden";
+		this.menue_window.sub_parts[3].mouse_over_text = "Ein Einzelhandelsladen um Waren an Privatkunden zu verkaufen.";
+		this.menue_window.set_position(230, 210);
+		room_or_funiture = true;
 		this.menue_window.activate();
+	}
+	
+	this.show_funiture_menue = function(tile, x, y){
+		tile_backup = tile;
+		for(var i = 0; i < 4; i++){
+			if(typeof existing_funiture[tile.room.kind_of_room][i] !== 'undefined'){
+				this.menue_window.sub_parts[i].label = existing_funiture[tile.room.kind_of_room][i].name + " " + existing_funiture[tile.room.kind_of_room][i].price + "$ " + existing_funiture[tile.room.kind_of_room][i].get_construction_time();
+				this.menue_window.sub_parts[i].mouse_over_text = existing_funiture[tile.room.kind_of_room][i].description;
+			}
+			else{
+				this.menue_window.sub_parts[i].label = "";
+				this.menue_window.sub_parts[i].mouse_over_text = "";
+			}
+			this.menue_window.set_position(x, y);
+			room_or_funiture = false;
+			this.menue_window.activate();
+		}
 	}
 	
 	this.hide_menue = function(){
@@ -274,7 +302,12 @@ function Construckt_Room_Menue(){
 	}
 	
 	this.button_click = function(source){
-		windows[0].chose_room(source);
+		if(room_or_funiture){
+			windows[0].chose_room(source);
+		}
+		else{
+			windows[0].chose_funiture(source, tile_backup);
+		}
 	}
 }
 
@@ -376,6 +409,7 @@ function Shop_Tile(x_cord, y_cord){
 					break;
 			
 			case 1: if(this.room != null && this.funiture == null){
+						this.action_possible = true;
 						return 1;
 					}
 					else{
@@ -461,24 +495,36 @@ function Shop_Tile(x_cord, y_cord){
 					var monitor_1 = new function(){
 						this.member = [];
 						this.exit_found = false;
+						this.room_exists = false;
 					}
 					var monitor_2 = new function(){
 						this.member = [];
 						this.exit_found = false;
+						this.room_exists = false;
 					}
 					if(this.top_tile != null){
-						this.top_tile.check_path(monitor_1, this);
+						if(this.top_tile.room != null && this.top_tile.room.kind_of_room == 4){
+							this.top_tile.check_shop_path(monitor_1, this);
+						}
+						else{
+							this.top_tile.check_path(monitor_1, this);
+						}
 					}
 					else{
 						monitor_1.exit_found = true;
 					}
 					if(this.bot_tile != null){
-						this.bot_tile.check_path(monitor_2, this);
+						if(this.bot_tile.room != null && this.bot_tile.room.kind_of_room == 4){
+							this.bot_tile.check_shop_path(monitor_2, this);
+						}
+						else{
+							this.bot_tile.check_path(monitor_2, this);
+						}
 					}
 					else{
 						monitor_2.exit_found = true;
 					}
-					if(monitor_1.exit_found && monitor_2.exit_found){
+					if((monitor_1.exit_found || !monitor_1.room_exists) && (monitor_2.exit_found || !monitor_2.room_exists)){
 						return true;
 					}
 					else{
@@ -489,24 +535,36 @@ function Shop_Tile(x_cord, y_cord){
 					var monitor_1 = new function(){
 						this.member = [];
 						this.exit_found = false;
+						this.room_exists = false;
 					}
 					var monitor_2 = new function(){
 						this.member = [];
 						this.exit_found = false;
+						this.room_exists = false;
 					}
 					if(this.left_tile != null){
-						this.left_tile.check_path(monitor_1, this);
+						if(this.left_tile.room != null && this.left_tile.room.kind_of_room == 4){
+							this.left_tile.check_shop_path(monitor_1, this);
+						}
+						else{
+							this.left_tile.check_path(monitor_1, this);
+						}
 					}
 					else{
 						monitor_1.exit_found = true;
 					}
 					if(this.right_tile != null){
-						this.right_tile.check_path(monitor_2, this);
+						if(this.right_tile.room != null && this.right_tile.room.kind_of_room == 4){
+							this.right_tile.check_shop_path(monitor_2, this);
+						}
+						else{
+							this.right_tile.check_path(monitor_2, this);
+						}
 					}
 					else{
 						monitor_2.exit_found = true;
 					}
-					if(monitor_1.exit_found && monitor_2.exit_found){
+					if(monitor_1.exit_found || !monitor_1.room_exists && (monitor_2.exit_found || !monitor_2.room_exists)){
 						return true;
 					}
 				}
@@ -545,7 +603,13 @@ function Shop_Tile(x_cord, y_cord){
 							   this.path.forEach(function(i){i.unhighlight()});
 						   }
 						   };
-			var storage = this.check_area(monitor, true);
+			var storage;
+			if(this.own_ui.own_parent.new_room_id != 4){
+				storage = this.check_area(monitor, true);
+			}
+			else{
+				storage = this.check_shop_area(monitor);
+			}
 			for(tile in monitor.member){
 				monitor.member[tile].highlight(monitor.last_status);
 				if(monitor.last_status){
@@ -768,6 +832,95 @@ function Shop_Tile(x_cord, y_cord){
 		}
 	}
 	
+	this.check_shop_area = function(monitor){
+		if(!monitor.member.includes(this)){
+			monitor.add_to_room(this);
+			this.monitor = monitor;
+			var top_wall = false;
+			var bot_wall = false;
+			var left_wall = false;
+			var right_wall = false;
+			if(this.top_tile.funiture == null){
+				this.top_tile.check_shop_area(monitor, true);
+			}
+			else if(this.top_tile.funiture.id == 0){
+				top_wall = true;
+			}
+			else if(this.top_tile.funiture.id == 1){
+				top_wall = true;
+				if(this.top_tile.outer_wall){
+					monitor.found_exit = true;
+					monitor.check_status();
+				}
+			}
+			if(this.bot_tile.funiture == null){
+				this.bot_tile.check_shop_area(monitor, true);
+			}
+			else if(this.bot_tile.funiture.id == 0){
+				bot_wall = true;
+			}
+			else if(this.bot_tile.funiture.id == 1){
+				bot_wall = true;
+				if(this.bot_tile.outer_wall){
+					monitor.found_exit = true;
+					monitor.check_status();
+				}
+			}
+			if(this.left_tile.funiture == null){
+				this.left_tile.check_shop_area(monitor, true);
+			}
+			else if(this.left_tile.funiture.id == 0){
+				left_wall = true;
+			}
+			else if(this.left_tile.funiture.id == 1){
+				left_wall = true;
+				if(this.left_tile.outer_wall){
+					monitor.found_exit = true;
+					monitor.check_status();
+				}
+			}
+			if(this.right_tile.funiture == null){
+				this.right_tile.check_shop_area(monitor, true);
+			}
+			else if(this.right_tile.funiture.id == 0){
+				right_wall = true;
+			}
+			else if(this.right_tile.funiture.id == 1){
+				right_wall = true;
+				if(this.right_tile.outer_wall){
+					monitor.found_exit = true;
+					monitor.check_status();
+				}
+			}
+			
+			if(!this.check_wall_compleat(top_wall, bot_wall, left_wall, right_wall)){
+				monitor.wall_complete = false;
+				
+			}
+			if(this.room != null){
+				monitor.room_empty = false;
+			}
+			monitor.check_status();
+			if(this.monitor.last_status){
+				return 1;
+			}
+			else{
+				return 2;
+			}
+		}
+		else{
+			if(this.monitor == null){
+				return 0;
+			}
+			else if(this.monitor.last_status){
+				return 1;
+			}
+			else{
+				return 2;
+			}
+		}
+	}
+	
 	this.check_area_deletable = function(monitor){
 		if(!monitor.member.includes(this)){
 			this.monitor = monitor;
@@ -934,21 +1087,54 @@ function Shop_Tile(x_cord, y_cord){
 	this.check_path = function(monitor, forbidden_tile){
 		if(!monitor.member.includes(this)){
 			monitor.member.push(this);
+			if(this.room != null){
+				monitor.room_exists = true;
+			}
 			if(this.outer_wall && this.funiture.id == 1){
 				monitor.exit_found = true;
 			}
-			
-			if(this.top_tile != null && this.top_tile != forbidden_tile && !(this.top_tile.room == null && this.top_tile.funiture != null && this.top_tile.funiture.id == 0)){
-				this.top_tile.check_path(monitor, forbidden_tile);
+			else{
+				if(this.top_tile != null && this.top_tile != forbidden_tile && !(this.top_tile.room == null && this.top_tile.funiture != null && this.top_tile.funiture.id == 0)){
+					this.top_tile.check_path(monitor, forbidden_tile);
+				}
+				if(this.bot_tile != null && this.bot_tile != forbidden_tile && !(this.bot_tile.room == null && this.bot_tile.funiture != null && this.bot_tile.funiture.id == 0)){
+					this.bot_tile.check_path(monitor, forbidden_tile);
+				}
+				if(this.left_tile != null && this.left_tile != forbidden_tile && !(this.left_tile.room == null && this.left_tile.funiture != null && this.left_tile.funiture.id == 0)){
+					this.left_tile.check_path(monitor, forbidden_tile);
+				}
+				if(this.right_tile != null && this.right_tile != forbidden_tile && !(this.right_tile.room == null && this.right_tile.funiture != null && this.right_tile.funiture.id == 0)){
+					this.right_tile.check_path(monitor, forbidden_tile);
+				}
 			}
-			if(this.bot_tile != null && this.bot_tile != forbidden_tile && !(this.bot_tile.room == null && this.bot_tile.funiture != null && this.bot_tile.funiture.id == 0)){
-				this.bot_tile.check_path(monitor, forbidden_tile);
+		}
+	}
+	
+	this.check_shop_path = function(monitor, forbidden_tile){
+		if(!monitor.member.includes(this)){
+			monitor.member.push(this);
+			if(this.room != null){
+				monitor.room_exists = true;
 			}
-			if(this.left_tile != null && this.left_tile != forbidden_tile && !(this.left_tile.room == null && this.left_tile.funiture != null && this.left_tile.funiture.id == 0)){
-				this.left_tile.check_path(monitor, forbidden_tile);
+			if(this.outer_wall && this.funiture.id == 1){
+				monitor.exit_found = true;
 			}
-			if(this.right_tile != null && this.right_tile != forbidden_tile && !(this.right_tile.room == null && this.right_tile.funiture != null && this.right_tile.funiture.id == 0)){
-				this.right_tile.check_path(monitor, forbidden_tile);
+			else if(this.funiture != null && this.funiture.id == 1 && !this.outer_wall){
+				
+			}
+			else{
+				if(this.top_tile != null && this.top_tile != forbidden_tile && !(this.top_tile.room == null && this.top_tile.funiture != null && this.top_tile.funiture.id == 0)){
+					this.top_tile.check_path(monitor, forbidden_tile);
+				}
+				if(this.bot_tile != null && this.bot_tile != forbidden_tile && !(this.bot_tile.room == null && this.bot_tile.funiture != null && this.bot_tile.funiture.id == 0)){
+					this.bot_tile.check_path(monitor, forbidden_tile);
+				}
+				if(this.left_tile != null && this.left_tile != forbidden_tile && !(this.left_tile.room == null && this.left_tile.funiture != null && this.left_tile.funiture.id == 0)){
+					this.left_tile.check_path(monitor, forbidden_tile);
+				}
+				if(this.right_tile != null && this.right_tile != forbidden_tile && !(this.right_tile.room == null && this.right_tile.funiture != null && this.right_tile.funiture.id == 0)){
+					this.right_tile.check_path(monitor, forbidden_tile);
+				}
 			}
 		}
 	}
@@ -977,6 +1163,110 @@ function Shop_Tile(x_cord, y_cord){
 	
 	this.mouse_up = function(){
 		this.own_ui.own_parent.tile_click(this);
+	}
+}
+
+function Ware_Stack_UI(own_parent, x, y){
+	this.own_parent = own_parent;
+	
+	this.x = x;
+	this.y = y;
+	this.mouse_over_status = false;		//Flag ob die Maus auf diesem Knopf liegt 
+	
+	this.pictur_x = 0;							//X position des Bildausschnittes
+	
+	this.own_backend = null;
+	
+	this.draw_image = function(){
+		if(this.own_backend != null){
+			ui_canvas.drawImage(image_repository.ware_tile , this.pictur_x, 0, 100, 100, this.x, this.y, 100, 100);
+			if(this.own_backend.ware != null){
+				ui_canvas.drawImage(image_repository.wares ,100 * parseInt(this.own_backend.ware.id.substr(1,2)), 100 * parseInt(this.own_backend.ware.id.substr(0,1)), 100, 100, this.x, this.y, 100, 100);
+				
+			}
+			ui_canvas.font = "bold 15px Arial";
+			ui_canvas.fillText(this.own_backend.stored_amount + "/" + this.own_backend.stack_size, this.x + 65, this.y + 22);
+		}
+	}
+	
+	this.mouse_in = function(){
+		if(mpos_x > this.x && mpos_x <= (this.x + 100) && mpos_y > this.y && mpos_y <= (this.y + 100) && this.is_activ){
+			if(!this.mouse_over_status){
+				focus_object.mouse_out();
+				focus_object = this;
+				this.mouse_over_status = true;
+			}
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+	
+	this.mouse_out = function(){
+		this.mouse_over_status = false;
+	}
+	
+	this.mouse_down = function(){
+		
+	}
+	
+	this.mouse_up = function(){
+		if(!this.selected){
+			this.selected = true;
+			this.pictur_x = 100;
+			if(this.own_parent.selected_storage == null){
+				this.own_parent.selected_storage = this;
+			}
+			else{
+				this.own_parent.selected_storage.mouse_click();
+				this.own_parent.selected_storage = this;
+			}
+		}
+		else{
+			this.selected = false;
+			this.pictur_x = 0;
+			this.own_parent.selected_storage = null;
+		}
+		this.draw_ware();
+	}
+}
+
+//Klasse für einen Stack einer Wahre im Lager
+function Ware_Stack(storag, size){
+	this.own_ui = null;
+	
+	this.storag = storag; 		//Referenz auf das Objekt dass diesen Stack beherbergt
+	this.ware = null;			//Welche Ware liegt in diesem Stack
+	this.stack_size = size;		//Wie viel von dieser Ware kann der Stack fassen
+	this.stored_amount = 0;		//Wie viel von der Ware liegt jetzt gerade auf dem Stack
+
+	this.is_activ = true;
+	this.selected = false;
+	
+	this.set_ware = function(ware, amount){
+		if(this.ware == null && this.stack_size >= amount){
+			this.ware = ware;
+			this.stored_amount = amount;
+			this.draw_ware();
+			return true;
+		}
+		else if(this.ware != null && this.ware.id == ware.id && this.stack_size >= this.stored_amount + amount){
+			this.stored_amount += amount;
+			this.draw_ware();
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+	
+	this.sell_ware = function(amount){
+		this.stored_amount -= amount
+		if(this.stored_amount == 0){
+			this.ware = null;
+		}
+		this.draw_ware();
 	}
 }
 
