@@ -45,7 +45,7 @@ function Window_Storage(){
 		ui_canvas.clearRect(0, 60, 1200, 590)
 		ui_canvas.fillStyle = "black";
 		for(i in this.button_content){
-			this.button_content[i].draw_image();
+			this.button_content[i].draw_image(0, 0);
 		}
 		ware_background.draw_image();
 		for(i in this.storage_content){
@@ -59,7 +59,7 @@ function Window_Storage(){
 		
 		//Durchsuche alle Knopf Objekte nach einem Treffer
 		for(var i = 0; i < this.button_content.length; i++){
-			if(this.button_content[i].mouse_over()){
+			if(this.button_content[i].mouse_over(0, 0)){
 				set_default = false;
 				break;
 			}

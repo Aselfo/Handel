@@ -16,45 +16,33 @@ function Window_Market(){
 		this.ui_buttons[3] = new UI_Button(3, 15, 175, this, "Verkaufen");
 		this.ui_buttons[3].is_activ = true;
 		
-		/*this.ui_buttons[4] = new Scroll_Button(4, 1075, 535, this, true);
+		this.ui_buttons[4] = new Scroll_Button(4, 1075, 535, this, true);
 		this.ui_buttons[4].is_activ = true;
 		this.ui_buttons[5] = new Scroll_Button(5, 1075, 595, this, false);
 		this.ui_buttons[5].is_activ = true;
-		this.ui_buttons[6] = new Scroll_Button(6, 440, 80, this, true);
+		
+		this.ui_buttons[6] = new Scroll_Button(10, 15, 335, this, true);
 		this.ui_buttons[6].is_activ = true;
-		this.ui_buttons[7] = new Scroll_Button(7, 440, 470, this, false);
+		this.ui_buttons[7] = new Scroll_Button(11, 55, 335, this, false);
 		this.ui_buttons[7].is_activ = true;
-		this.ui_buttons[8] = new Scroll_Button(10, 15, 335, this, true);
-		this.ui_buttons[8].is_activ = true;
-		this.ui_buttons[9] = new Scroll_Button(11, 55, 335, this, false);
-		this.ui_buttons[9].is_activ = true;*/
 		
-		this.ui_buttons[10] = new UI_Button(12, 235, 80, this, "Metalle");
-		this.ui_buttons[10].is_activ = true;
-		this.ui_buttons[11] = new UI_Button(13, 235, 130, this, "Kräuter");
-		this.ui_buttons[11].is_activ = true;
-		this.ui_buttons[12] = new UI_Button(14, 235, 180, this, "Schmiedehalbfabrikate");
-		this.ui_buttons[12].is_activ = true;
-		this.ui_buttons[13] = new UI_Button(15, 235, 230, this, "Alchemiehalbfabrikate");
-		this.ui_buttons[13].is_activ = true;
-		this.ui_buttons[14] = new UI_Button(16, 235, 280, this, "Rüstung");
-		this.ui_buttons[14].is_activ = true;
-		this.ui_buttons[15] = new UI_Button(17, 235, 330, this, "Tränke");
-		this.ui_buttons[15].is_activ = true;
+		this.ui_parts[0] = new Scrollable_Ui_Part(ui_canvas, 225, 70, 255, 440, 0, this);
+		this.ui_parts[0].sub_parts[0] = new UI_Button(4, 235, 80, this, "Metalle");
+		this.ui_parts[0].sub_parts[0].is_activ = true;
+		this.ui_parts[0].sub_parts[1] = new UI_Button(5, 235, 130, this, "Kräuter");
+		this.ui_parts[0].sub_parts[1].is_activ = true;
+		this.ui_parts[0].sub_parts[2] = new UI_Button(6, 235, 180, this, "Schmiedehalbfabrikate");
+		this.ui_parts[0].sub_parts[2].is_activ = true;
+		this.ui_parts[0].sub_parts[3] = new UI_Button(7, 235, 230, this, "Alchemiehalbfabrikate");
+		this.ui_parts[0].sub_parts[3].is_activ = true;
+		this.ui_parts[0].sub_parts[4] = new UI_Button(8, 235, 280, this, "Rüstung");
+		this.ui_parts[0].sub_parts[4].is_activ = true;
+		this.ui_parts[0].sub_parts[5] = new UI_Button(9, 235, 330, this, "Tränke");
+		this.ui_parts[0].sub_parts[5].is_activ = true;
 		
-		this.ui_parts[0] = new Ui_Part(ui_canvas, 15, 115, 200, 40, 0, this);
-		this.ui_parts[1] = new Ui_Part(ui_canvas, 225, 70, 255, 440, 0, this);
-		this.ui_parts[2] = new Ui_Part(ui_canvas, 65, 520, 1050, 120, 1, this);
-		this.ui_parts[3] = new Ui_Part(ui_canvas, 490, 70, 480, 440, 0, this);
-		/*this.ui_parts[3].sub_parts[0] = new Ware_Tile(13, 80, null, this);
-		this.ui_parts[3].sub_parts[1] = new Ware_Tile(14, 210, null, this);
-		this.ui_parts[3].sub_parts[2] = new Ware_Tile(15, 340, null, this);
-		this.ui_parts[3].sub_parts[3] =	new Scroll_Button(8, 930, 80, this, true);
-		this.ui_parts[3].sub_parts[3].is_activ = true;
-		this.ui_parts[3].sub_parts[4] = new Scroll_Button(9, 930, 470, this, false);
-		this.ui_parts[3].sub_parts[4].is_activ = true;*/
-		
-		
+		this.ui_parts[1] = new Ui_Part(ui_canvas, 65, 520, 1050, 120, 1, this);
+		this.ui_parts[2] = new Scrollable_Ui_Part(ui_canvas, 490, 70, 480, 440, 0, this);
+		this.ui_parts[3] = new Ui_Part(ui_canvas, 15, 115, 200, 40, 0, this);
 		this.ui_parts[4] = new Ui_Part(ui_canvas, 15, 220, 200, 40, 0, this);
 		this.ui_parts[5] = new Ui_Part(ui_canvas, 15, 265, 120, 30, 0, this);
 		this.ui_parts[6] = new Ui_Part(ui_canvas, 140, 265, 75, 30, 0, this);
@@ -77,23 +65,73 @@ function Window_Market(){
 			object.draw_image();
 		});	
 		this.ui_buttons.forEach(function(object){
-			object.draw_image();
+			object.draw_image(0, 0);
 		});
 	}
 	
 	this.mouse_over = function(){
+		var set_default = true;		//Flag fals garnichts gefunden wird und das default Objekt eingesetzt werden soll
 		
+		//Durchsuche alle Knopf Objekte nach einem Treffer
+		for(var i = 0; i < this.ui_parts.length; i++){
+			if(this.ui_parts[i].mouse_over()){
+				set_default = false;
+				break;
+			}
+		}
+		for(var i = 0; i < this.ui_buttons.length; i++){
+			if(this.ui_buttons[i].mouse_over()){
+				set_default = false;
+				break;
+			}
+		}
+		
+		//Setzt das default Objekt ein wenn nichts gefunden wird
+		if(set_default){
+			focus_object.mouse_out();
+			focus_object = default_focus;
+		}
 	}
 	
 	this.mouse_down = function(){
-		
+		focus_object.mouse_down();
 	}
 	
 	this.mouse_up = function(){
-		
+		focus_object.mouse_up();
+	}
+	
+	this.set_actual_category = function(id){
+		var category_array = [];
+		for(i in existing_wares[id]){
+			category_array.push(new Ware_Tile( i, 80 + i * 130, existing_wares[id][i], this.ui_parts[2]));
+		}
+		this.ui_parts[2].sub_parts = category_array;
+		this.ui_parts[2].draw_image()
 	}
 	
 	this.button_click = function(source){
-		
+		switch(source){
+			case 0: switch_window(0);
+					break;
+			case 1: switch_window(1);
+					break;
+			case 2: 
+					break;
+			case 3:
+					break;
+			case 4: this.set_actual_category(0);
+					break;
+			case 5: this.set_actual_category(1);
+					break;
+			case 6: this.set_actual_category(2);
+					break;
+			case 7: this.set_actual_category(3);
+					break;
+			case 8: this.set_actual_category(4);
+					break;
+			case 9: this.set_actual_category(5);
+					break;
+		}
 	}
 }

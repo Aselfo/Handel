@@ -496,33 +496,33 @@ function switch_window(window_id){
 }
 
 //Erstellt die Liste aller Existierender Waren
-/*function define_existing_wares(){
+function define_existing_wares(){
 	existing_wares[0] = [];
-	existing_wares[0][0] = new Ware("000", "Bronzebarren", 20, 10, "Ein Barren Bronze", [[null, 0]], 10);
-	existing_wares[0][1] = new Ware("001", "Eisenbarren", 30, 15, "Ein Barren  Eisen", [[null, 0]], 10);
-	existing_wares[0][2] = new Ware("002", "Silberbarren", 50, 25, "Ein Barren reines Silber", [[null, 0]], 10);
-	existing_wares[0][3] = new Ware("003", "Goldbarren", 80, 40, "Ein Barren reines Gold", [[null, 0]], 10);
-	existing_wares[0][4] = new Ware("004", "Froststahlbarren", 100, 50, "Ein Barren eisverzaubertem Stahl", [[null, 0]], 10);
-	existing_wares[0][5] = new Ware("005", "Flammenstahlbarren", 100, 50, "Ein Barren feuerverzaubertem Stahl", [[null, 0]], 10);
+	existing_wares[0][0] = new Ware(0, 0, "Bronzebarren", 20, 10, "Ein Barren Bronze", [[null, null, 0]], 10);
+	existing_wares[0][1] = new Ware(0, 1, "Eisenbarren", 30, 15, "Ein Barren  Eisen", [[null, null, 0]], 10);
+	existing_wares[0][2] = new Ware(0, 2, "Silberbarren", 50, 25, "Ein Barren reines Silber", [[null, null, 0]], 10);
+	existing_wares[0][3] = new Ware(0, 3, "Goldbarren", 80, 40, "Ein Barren reines Gold", [[null, null, 0]], 10);
+	existing_wares[0][4] = new Ware(0, 4, "Froststahlbarren", 100, 50, "Ein Barren eisverzaubertem Stahl", [[null, null, 0]], 10);
+	existing_wares[0][5] = new Ware(0, 5, "Flammenstahlbarren", 100, 50, "Ein Barren feuerverzaubertem Stahl", [[null, null, 0]], 10);
 	existing_wares[1] = [];
-	existing_wares[1][0] = new Ware("100", "Kettenglieder", 30, 15, "Metallringe für Ketten oder Kettenhemden", [["001", 1]], 20);
+	existing_wares[1][0] = new Ware(1, 0, "Kettenglieder", 30, 15, "Metallringe für Ketten oder Kettenhemden", [[0, 1, 1]], 20);
 	existing_wares[2] = [];
-	existing_wares[2][0] = new Ware("200", "Helm", 300, 150, "Ein Einfacher Eisenhelm. Er wird in der Schmiede hergestellt und ist in jedem Rüstungsladen erhältlich", [["001", 3]], 60);
-	existing_wares[2][1] = new Ware("201", "Kettenhemd", 350, 175, "Ein feingliedrieges Kettenhemd", [["000", 1],["100",2]], 60);
+	existing_wares[2][0] = new Ware(2, 0, "Helm", 300, 150, "Ein Einfacher Eisenhelm. Er wird in der Schmiede hergestellt und ist in jedem Rüstungsladen erhältlich", [["001", 3]], 60);
+	existing_wares[2][1] = new Ware(2, 1, "Kettenhemd", 350, 175, "Ein feingliedrieges Kettenhemd", [[0, 0, 1],[1, 0,2]], 60);
 	existing_wares[3] = [];
-	existing_wares[3][0] = new Ware("300", "Heilkraut", 10, 5, "Ein Bitters Kraut mit Gelben Blüten", [[null, 0]], 10);
-	existing_wares[3][1] = new Ware("301", "Schlafkraut", 15, 7, "Ein lilanes Kraut mit Süsem duft", [[null, 0]], 10);
-	existing_wares[3][2] = new Ware("302", "Feuerkraut", 20, 10, "Ein Blume die nur an den Hängen von Vulkankratern Wächst", [[null, 0]], 10);
-	existing_wares[3][3] = new Ware("303", "Giftkraut", 20, 10, "Ein Blüte mit hoch giftigem Nectar", [[null, 0]], 10);
-	existing_wares[3][4] = new Ware("304", "Manakraut", 15, 5, "Ein gewöhnliches Kraut gerne auch für Tee verwendet", [[null, 0]], 10);
+	existing_wares[3][0] = new Ware(3, 0, "Heilkraut", 10, 5, "Ein Bitters Kraut mit Gelben Blüten", [[null, null, 0]], 10);
+	existing_wares[3][1] = new Ware(3, 1, "Schlafkraut", 15, 7, "Ein lilanes Kraut mit Süsem duft", [[null, null, 0]], 10);
+	existing_wares[3][2] = new Ware(3, 2, "Feuerkraut", 20, 10, "Ein Blume die nur an den Hängen von Vulkankratern Wächst", [[null, null, 0]], 10);
+	existing_wares[3][3] = new Ware(3, 3, "Giftkraut", 20, 10, "Ein Blüte mit hoch giftigem Nectar", [[null, null, 0]], 10);
+	existing_wares[3][4] = new Ware(3, 4, "Manakraut", 15, 5, "Ein gewöhnliches Kraut gerne auch für Tee verwendet", [[null, null, 0]], 10);
 	existing_wares[4] = [];
 	existing_wares[5] = [];
-	existing_wares[5][0] = new Ware("500", "Heiltrank", 60, 30, "Ein Trank der kleine Wunden heilt", [["300", 1]], 10);
-	existing_wares[5][1] = new Ware("501", "Manatrank", 80, 40, "Ein Trank der etwas Mana wiederherstellt", [["304", 2]], 15);
-	existing_wares[5][2] = new Ware("502", "Schlafmittel", 70, 35, "Ein Schlafmittel für Schlafprobleme", [["300", 1],["301",1]], 15);
-	existing_wares[5][3] = new Ware("503", "Gegengift", 120, 60, "Ein Gegenmittel für die meisten gewöhnlichen Gifte", [["300", 2],["303",1]], 30);
-	}
-*/	
+	existing_wares[5][0] = new Ware(5, 0, "Heiltrank", 60, 30, "Ein Trank der kleine Wunden heilt", [[3, 0, 1]], 10);
+	existing_wares[5][1] = new Ware(5, 0, "Manatrank", 80, 40, "Ein Trank der etwas Mana wiederherstellt", [[3, 4, 2]], 15);
+	existing_wares[5][2] = new Ware(5, 0, "Schlafmittel", 70, 35, "Ein Schlafmittel für Schlafprobleme", [[3, 0, 1],[3, 1, 1]], 15);
+	existing_wares[5][3] = new Ware(5, 0, "Gegengift", 120, 60, "Ein Gegenmittel für die meisten gewöhnlichen Gifte", [[3, 0, 2],[3, 3, 1]], 30);
+}	
+	
 //Erstellt die Liste aller Existierender Einrichtungsgegenstände
 function define_existing_funiture(){
 	existing_funiture[0] = []
@@ -532,9 +532,9 @@ function define_existing_funiture(){
 	existing_funiture[1][0] = new Funiture_Data("Regal", "Ein Regal das bis zu 5 Einheiten von 4 verschiedenen Waren fassen kann", 50, 5, [4, 5]);
 	existing_funiture[1][1] = new Funiture_Data("Kiste", "Eine Kiste die bis zu 30 Einheiten einer Ware fassen kann", 10, 5, [1, 30]);
 	existing_funiture[2] = []
-	existing_funiture[2][0] = new Funiture_Data("Ambos", "Ein Schmiedeambos für Metalarbeiten", 50, 5, ["100","200","201"]);
+	existing_funiture[2][0] = new Funiture_Data("Ambos", "Ein Schmiedeambos für Metalarbeiten", 50, 5, [[1, 0], [2, 0],[2, 1]]);
 	existing_funiture[3] = []
-	existing_funiture[3][0] = new Funiture_Data("Labortisch", "Ein Labortisch zum Tränke brauen", 50, 300, ["500","501","502","503"]);
+	existing_funiture[3][0] = new Funiture_Data("Labortisch", "Ein Labortisch zum Tränke brauen", 50, 300, [[5, 0],[5, 1],[5, 2],[5, 3]]);
 	existing_funiture[4] = []
 	existing_funiture[4][0] = new Funiture_Data("Aussteller", "Ein Tisch um Waren zum verkauf auszustellen", 50, 5, []);
 }
@@ -695,7 +695,7 @@ function init(){
 		popup_canvas = popup_canvas.getContext('2d');
 	}
 	
-	//define_existing_wares();	
+	define_existing_wares();	
 	define_existing_funiture();
 	
 	head_bar = new Head_Bar();

@@ -78,6 +78,113 @@ function Ui_Part(canvas, x, y, width, height, color_id, own_parent){
 	}
 }
 
+function Scrollable_Ui_Part(canvas, x, y, width, height, color_id, own_parent){
+	this.canvas = canvas;
+	this.x = x;
+	this.y = y;
+	this.width = width;
+	this.height = height;
+	
+	this.color_id = color_id
+	
+	this.own_parent = own_parent;
+	this.sub_parts = [];
+	this.scroll_position = 0;
+	this.up_button = new Scroll_Button(0, x + width - 40, y + 10, this, true);
+	this.down_button = new Scroll_Button(1, x + width - 40, y + height - 40, this, false);
+	this.up_button.save_x = width - 85;
+	this.up_button.save_y = 10
+	this.down_button.save_x = width - 85;
+	this.down_button.save_y = height - 10;
+	this.up_button.mouse_up = function(){this.own_parent.scroll_up()};
+	this.down_button.mouse_up = function(){this.own_parent.scroll_down()};
+	
+	this.is_activ = true;
+	
+	this.draw_image = function(){
+		if(this.is_activ){
+			ui_canvas.clearRect(this.x - 1, this.y - 1, this.width+ 2, this.height + 2);
+			draw_background(this.canvas, this.x, this.y, this.width, this.height, this.color_id);
+			this.up_button.draw_image();
+			this.down_button.draw_image();
+			for(var i = 0; i < this.sub_parts.length; i++){
+				if((this.sub_parts[i].y - this.scroll_position) > (this.y) && (this.sub_parts[i].y + this.sub_parts[i].height - this.scroll_position) < this.y + this.height){
+					this.sub_parts[i].draw_image(0, this.scroll_position);
+				}
+			}
+		}
+	}
+	
+	this.mouse_over = function(){
+		if(this.is_activ){
+			for(var i = 0; i < this.sub_parts.length; i++){
+				if((this.sub_parts[i].y - this.scroll_position) < (this.y + this.height) && (this.sub_parts[i].y + this.sub_parts[i].height - this.scroll_position) > this.y){	
+					if(this.sub_parts[i].mouse_over()){
+						return true;
+					}
+				}
+			}
+			if(this.up_button.mouse_over()){
+				return true;
+			}
+			if(this.down_button.mouse_over()){
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	this.set_position = function(x, y){
+		this.x = x;
+		this.y = y;
+		this.up_button.x = x + this.up_button.save_x;
+		this.up_button.y = y + this.up_button.save_y;
+		this.down_button.x = x + this.down_button.save_x;
+		this.down_button.y = y + this.down_button.save_y;
+		for(var i = 0; i < this.sub_parts.length; i++){
+			this.sub_parts[i].x = x + this.sub_parts[i].save_x;
+			this.sub_parts[i].y = y + this.sub_parts[i].save_y;
+		}
+	}
+	
+	this.activate = function(){
+		this.is_activ = true;
+		for(var i = 0; i < this.sub_parts.length; i++){
+			if(this.sub_parts[i].label != ""){
+				this.sub_parts[i].is_activ = true;
+			}
+		}
+		this.draw_image();
+	}
+	
+	this.deactivate = function(){
+		this.is_activ = false;
+		for(var i = 0; i < this.sub_parts.length; i++){
+			this.sub_parts[i].is_activ = false;
+		}
+		ui_canvas.clearRect(this.x - 1, this.y - 1, this.width+ 2, this.height + 2);
+	}
+
+	this.scroll_up = function(){
+		if(this.scroll_position > 0){
+			this.scroll_position -= (this.sub_parts[i].height + 10);
+			this.draw_image();
+		}
+	}
+	
+	this.scroll_down = function(){
+		var size = -(2* (this.sub_parts[0].height + 10) - 5);
+		for(i in this.sub_parts){
+			size += (this.sub_parts[i].height + 10);
+		}
+		console.log(size + " " + this.scroll_position);
+		if(this.scroll_position < size){
+			this.scroll_position += (this.sub_parts[i].height + 10);
+			this.draw_image();
+		}
+	}
+}
+
 //Klasse für Knöpfe
 function UI_Button(id, x, y, own_parent, label){
 	this.canvas = ui_canvas;			//Referenz auf die Zeichenebene
@@ -87,6 +194,8 @@ function UI_Button(id, x, y, own_parent, label){
 	this.height = 40
 	this.pictur_x = 0;					//X position des Bildausschnittes
 	this.pictur_y = 0;					//Y position des Bildausschnittes
+	this.scroll_x = 0;
+	this.scroll_y = 0;
 	this.mouse_over_status = false;		//Flag ob die Maus auf diesem Knopf liegt 
 	
 	this.id = id;						//ID Des Knopfes
@@ -97,11 +206,13 @@ function UI_Button(id, x, y, own_parent, label){
 	this.mouse_over_text = "";			//String für die Ausgabe als popup
 	
 	//Zeichnet den Knopf
-	this.draw_image = function(){
+	this.draw_image = function(scroll_x, scroll_y){
+		this.scroll_x = scroll_x;
+		this.scroll_y = scroll_y;
 		if(this.is_activ){
-			this.canvas.drawImage(image_repository.button_image, this.pictur_x, this.pictur_y, 200, 40, this.x, this.y, this.width, this.height);
+			this.canvas.drawImage(image_repository.button_image, this.pictur_x, this.pictur_y, 200, 40, this.x - this.scroll_x, this.y - this.scroll_y, this.width, this.height);
 			this.canvas.font = "bold 14px Arial";
-			this.canvas.fillText(this.label, this.x + (this.width - this.canvas.measureText(this.label).width) / 2, this.y + 25);
+			this.canvas.fillText(this.label, this.x - this.scroll_x + (this.width - this.canvas.measureText(this.label).width) / 2, this.y - this.scroll_y + 25);
 		}
 	}
 	
@@ -116,15 +227,15 @@ function UI_Button(id, x, y, own_parent, label){
 	
 	//Wird aufgerufen wenn die Maus auf den Knopf fährt
 	this.mouse_over = function(){
-		if(mpos_x > this.x && mpos_x <= (this.x + this.width) && mpos_y > this.y && mpos_y <= (this.y + this.height) && this.is_activ){
+		if(mpos_x > (this.x - this.scroll_x) && mpos_x <= (this.x - this.scroll_x + this.width) && mpos_y > (this.y - this.scroll_y) && mpos_y <= (this.y - this.scroll_y + this.height) && this.is_activ){
 			if(!this.mouse_over_status){
 				focus_object.mouse_out();
 				focus_object = this;
 				this.mouse_over_status = true;
 				this.pictur_x = 200;
-				this.draw_image();
+				this.draw_image(this.scroll_x, this.scroll_y);
 				if(this.mouse_over_text != ""){
-					mouse_over_tooltip.show_tooltip(this.x + this.width + 15, this.y, this.mouse_over_text);
+					mouse_over_tooltip.show_tooltip(this.x + this.width + 15, mpos_y, this.mouse_over_text);
 				}
 			}
 			return true;
@@ -138,7 +249,7 @@ function UI_Button(id, x, y, own_parent, label){
 	this.mouse_out = function(){
 		this.mouse_over_status = false;
 		this.pictur_x = 0;
-		this.draw_image();
+		this.draw_image(this.scroll_x, this.scroll_y);
 		if(this.mouse_over_text != ""){
 			mouse_over_tooltip.hide_tooltip();
 		}
@@ -147,7 +258,7 @@ function UI_Button(id, x, y, own_parent, label){
 	//Activiert einen Knopf
 	this.enable_button = function(){
 		this.is_activ = true;
-		this.draw_image();
+		this.draw_image(0, 0);
 	}
 	
 	//Deactiviert einen Knopf
@@ -157,7 +268,211 @@ function UI_Button(id, x, y, own_parent, label){
 	}
 }
 
+//Klasse für Scroll_Knöpfe
+function Scroll_Button(id, x, y, own_parent, up_down){
+	this.x = x;							//X position des Knopfes
+	this.y = y;							//Y position des Knopfes
+	this.width = 30
+	this.hight = 30
+	if(up_down){
+		this.pictur_y = 0;				//Y position des Bildausschnittes
+	}
+	else{
+		this.pictur_y = 30;
+	}
+		
+	this.id = id;						//ID Des Knopfes
+	this.own_parent = own_parent;		//Referenz auf das Fenster zu dem der Knopf gehört
+	this.is_activ = true;				//Flag ob der Knopf gerade aktiv ist
+	this.mouse_over_status = false;		//Flag ob die Maus auf diesem Knopf liegt 
+	
+	//Zeichnet den Knopf
+	this.draw_image = function(){
+		if(this.is_activ){
+			if(this.mouse_over_status){
+				ui_canvas.drawImage(image_repository.up_down_button, 30, this.pictur_y, 30, 30, this.x, this.y, this.width, this.hight);
+			}
+			else{
+				ui_canvas.drawImage(image_repository.up_down_button, 0, this.pictur_y, 30, 30, this.x, this.y, this.width, this.hight);
+			}
+		}
+	}
+	
+	//Wird aufgerufen wenn die Maus auf den Knopf fährt
+	this.mouse_over = function(){
+		if(mpos_x > this.x && mpos_x <= (this.x + 30) && mpos_y > this.y && mpos_y <= (this.y + 30) && this.is_activ){
+			if(!this.mouse_over_status){
+				focus_object.mouse_out();
+				focus_object = this;
+				this.mouse_over_status = true;
+				this.draw_image();
+			}
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+	
+	//Wird aufgerufen wenn die Maus auß dem Knopf fährt
+	this.mouse_out = function(){
+		this.mouse_over_status = false;
+		this.draw_image();
+	}
+	
+	this.mouse_down = function(){
+		
+	}
+	
+	//Meldet dem Fenster dass Dieser Button geklickt wurde und gibt sich selbst zurück
+	this.mouse_up = function(){
+		this.own_parent.button_click(this.id);
+	}
+}
+
 //------------Einmalige Objekte-----------------------------------------------
+//Klasse für Popup Fenster
+function Popup_Message(){
+	this.x;
+	this.y;
+	this.height;
+	this.width;
+	
+	this.message_queue = [];
+	
+	this.add_message = function(message){
+		this.message_queue.push(message);
+		this.next_message();
+	}
+	
+	this.next_message = function(){
+		if(this.message_queue.length > 0){
+			this.show_message(this.message_queue.pop());
+		}
+		else{
+			this.hide_message();
+		}
+	}
+	
+	this.show_message = function(message){
+		popup_message_visible = true;
+		popup_canvas.font = "bold 12px Arial";
+		this.width = 220;
+		
+		var message = message.split(" ");
+		var j = 0;
+		var memory = message;
+		message = [];
+		message[0] = "";
+		for(var i = 0; i < memory.length; i++){
+			if(popup_canvas.measureText(message[j] + " " + memory[i]).width <= 300){
+				message[j] = message[j] + " " + memory[i];
+			}
+			else{
+				this.width = 320;
+				j++;
+				message[j] = " " + memory[i];
+			}
+		}
+		if(this.width < popup_canvas.measureText(message[j]).width + 20){
+			this.width = popup_canvas.measureText(message[j]).width + 20;
+		}
+		this.height = message.length * 12 + 32;
+		
+		this.x = (1200-this.width)/2;
+		this.y = (590-this.height)/2;
+		
+		draw_background(popup_canvas, this.x, this.y, this.width, this.height, 0);
+		popup_canvas.fillText(this.message_queue.length + 1, this.x + 10, 20 + this.y);
+		
+		for(var i = 0; i < message.length; i++){
+			popup_canvas.fillText(message[i], this.x + 10, 32 + 12 * i + this.y);
+		}
+	}
+	
+	this.hide_message = function(){
+		popup_message_visible = false;
+		popup_canvas.clearRect(this.x, this.y, this.width, this.height);
+	}
+}
+
+//Klasse für ein Popupfenster das eine Bestätigung vordert
+function Confirm_Request(){
+	this.x;
+	this.y;
+	this.width = 300;
+	this.height = 0;
+	
+	this.actual_parent = null;
+	
+	this.ok_button = new UI_Button(1, 0, 0, this, "Ja");
+	this.ok_button.canvas = popup_canvas;
+	this.ok_button.width = 97;
+	this.abort_button = new UI_Button(0, 0, 0, this, "Abbrechen");
+	this.abort_button.canvas = popup_canvas;
+	this.abort_button.width = 97;
+	
+	this.request_answer = function(request_source, x, y, request){
+		this.actual_parent = request_source;
+		this.x = x;
+		this.y = y;
+		this.request = request;
+		
+		var request = request.split(" ");
+		var j = 0;
+		var memory = request;
+		request = [];
+		request[0] = "";
+		for(var i = 0; i < memory.length; i++){
+			if(popup_canvas.measureText(request[j] + " " + memory[i]).width <= 300){
+				request[j] = request[j] + " " + memory[i];
+			}
+			else{
+				this.width = 320;
+				j++;
+				request[j] = " " + memory[i];
+			}
+		}
+		if(this.width < popup_canvas.measureText(request[j]).width + 20){
+			this.width = popup_canvas.measureText(request[j]).width + 20;
+		}
+		this.height = request.length * 12 + 82;
+		
+		this.ok_button.x = this.x + 112;
+		this.ok_button.y = this.y + this.height - 50;
+		
+		this.abort_button.x = this.x + 10;
+		this.abort_button.y = this.y + this.height - 50;
+		
+		draw_background(popup_canvas, this.x, this.y, this.width, this.height, 0);
+		for(var i = 0; i < request.length; i++){
+			popup_canvas.fillText(request[i], this.x + 10, 20 + 12 * i + this.y);
+		}
+		this.ok_button.enable_button();
+		this.abort_button.enable_button();
+	}
+	
+	this.mouse_over = function(){
+		if(this.ok_button.mouse_in()){
+			return true;
+		}
+		if(this.abort_button.mouse_in()){
+			return true;
+		}
+		return false;
+	}
+	
+	this.button_click = function(source){
+		if(source){
+			this.actual_parent.action_on_hold();
+			this.actual_parent.action_on_hold = null;
+		}
+		this.ok_button.disable_button();
+		this.abort_button.disable_button();
+		popup_canvas.clearRect(this.x, this.y, this.width, this.height);
+	}
+	
+}
 
 //Klasse für die Spiel Uhr
 function Clock(){
@@ -1181,8 +1496,7 @@ function Ware_Stack_UI(own_parent, x, y){
 		if(this.own_backend != null){
 			ui_canvas.drawImage(image_repository.ware_tile , this.pictur_x, 0, 100, 100, this.x, this.y, 100, 100);
 			if(this.own_backend.ware != null){
-				ui_canvas.drawImage(image_repository.wares ,100 * parseInt(this.own_backend.ware.id.substr(1,2)), 100 * parseInt(this.own_backend.ware.id.substr(0,1)), 100, 100, this.x, this.y, 100, 100);
-				
+				ui_canvas.drawImage(image_repository.wares , 100 * this.ware.id, 100 * this.ware.category_id, 100, 100, this.x, this.y, 100, 100);
 			}
 			ui_canvas.font = "bold 15px Arial";
 			ui_canvas.fillText(this.own_backend.stored_amount + "/" + this.own_backend.stack_size, this.x + 65, this.y + 22);
@@ -1267,6 +1581,120 @@ function Ware_Stack(storag, size){
 			this.ware = null;
 		}
 		this.draw_ware();
+	}
+}
+
+//Klasse für eine Angebotsfeld auf dem markt
+function Ware_Tile(id, y, ware, own_parent){
+	this.x  = 500;
+	this.y = y;
+	this.width = 425;
+	this.height = 120;
+	this.scroll_x = 0;
+	this.scroll_y = 0;
+	this.pictur_y = 0;
+	this.scroll_up_button = new Scroll_Button(0, this.x + 350, y + 10, this, true);
+	this.scroll_down_button = new Scroll_Button(1, this.x + 385, y + 10, this, false);
+	
+	this.own_parent = own_parent;
+	
+	this.selected = false;
+	this.is_activ = true;
+	this.mouse_over = false;
+	
+	this.ware = ware;
+	this.quantity = 0;
+	
+	this.draw_image = function(scroll_x, scroll_y){
+		if(this.is_activ){
+			this.scroll_x = scroll_x;
+			this.scroll_y = scroll_y;
+			ui_canvas.drawImage(image_repository.market_ware, 0, this.pictur_y, 425, 120, this.x - this.scroll_x, this.y - this.scroll_y, 425, 120);
+			ui_canvas.drawImage(image_repository.wares, 100 * this.ware.id, 100 * this.ware.category_id, 100, 100, this.x - this.scroll_x + 5, this.y - this.scroll_y + 5, 100, 100);
+			ui_canvas.font = "bold 12px Arial";
+			ui_canvas.fillText(this.ware.name, this.x - this.scroll_x + 120, this.y - this.scroll_y + 30);
+			ui_canvas.fillText(this.ware.buy_price + "$", this.x - this.scroll_x + 225, this.y - this.scroll_y + 30);
+			ui_canvas.fillText(this.quantity, this.x - this.scroll_x + 293, this.y - this.scroll_y + 30);
+			for(var i = 0; i < this.ware.description.length; i++){
+				ui_canvas.fillText(this.ware.description[i], this.x - this.scroll_x + 120, 62 + 12 * i + this.y - this.scroll_y);
+			}
+			
+			this.scroll_up_button.draw_image();
+			this.scroll_down_button.draw_image();
+		}
+	}
+	
+	this.mouse_over = function(){
+		if(mpos_x > this.x + 5 && mpos_x <= (this.x + 430) && mpos_y > this.y && mpos_y <= (this.y + 120) && this.is_activ){
+			if(this.selected){
+				if(this.scroll_up_button.mouse_in()){}
+				else if(this.scroll_down_button.mouse_in()){}
+				else{
+					if(!this.mouse_over){
+						this.mouse_over = true;
+						focus_object.mouse_out();
+						focus_object = this;
+					}
+				}
+			}
+			else{
+				if(!this.mouse_over){
+					this.mouse_over = true;
+					focus_object.mouse_out();
+					focus_object = this;
+				}
+			}
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+	
+	this.mouse_down = function(){
+		
+	}
+	
+	this.mouse_up = function(){
+		this.mouse_over = false;
+	}
+	
+	this.mouse_click = function(){
+		if(!this.selected){
+			this.selected = true;
+			this.pictur_y = 120;
+			if(this.own_parent.selected_ware != null){
+				this.own_parent.selected_ware.mouse_click();
+			}
+			this.own_parent.selected_ware = this;
+		}
+		else if(this.button_focus == null){
+			this.selected = false;
+			this.pictur_y = 0;
+			this.quantity = 0;
+			this.own_parent.update_buy_price();
+			this.own_parent.selected_ware = null;
+		}
+		else{
+			this.button_focus.mouse_click();
+		}
+		this.draw_image();
+	}
+	
+	this.button_click = function(source){
+		switch(source){
+				case 0: if(this.quantity < 100000){
+							this.quantity++;
+							this.own_parent.update_buy_price();
+						}
+						break;
+				case 1: if(this.quantity > 0){
+							this.quantity--;
+							this.own_parent.update_buy_price();
+						}
+						break;
+		}
+		this.draw_image();
 	}
 }
 
@@ -1367,5 +1795,30 @@ function Funiture_Data(name, description, price, construckion_time, craftable_wa
 		}
 		var time_string = hour + ":" + minutes + ":" + seconds;
 		return time_string;
+	}
+}
+
+//Klasse für den Datentüp Ware der die Definition einer Ware enthält
+function Ware(category_id, id, name, buy_price, sell_price, description, production_cost, production_time){
+	this.category_id = category_id;
+	this.id = id;
+	this.name = name;
+	this.buy_price = buy_price;
+	this.sell_price = sell_price;
+	this.production_cost = production_cost;
+	this.production_time = production_time;
+	this.description = description.split(" ");
+	var j = 0;
+	var memory = this.description;
+	this.description = [];
+	this.description[0] = "";
+	for(var i = 0; i < memory.length; i++){
+		if(ui_canvas.measureText(this.description[j] + " " + memory[i]).width <= 240){
+			this.description[j] = this.description[j] + " " + memory[i];
+		}
+		else{
+			j++;
+			this.description[j] = " " + memory[i];
+		}
 	}
 }

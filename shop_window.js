@@ -53,7 +53,7 @@ function Window_Shop(){
 	this.draw_ui_canvas = function(){
 		ui_canvas.clearRect(0, 60, 1200, 590);
 		for(var i = 0; i < this.ui_content.length; i++){
-			this.ui_content[i].draw_image();
+			this.ui_content[i].draw_image(0, 0);
 		}
 	}
 	
@@ -221,7 +221,7 @@ function Window_Shop(){
 				menue_open = false;
 			}
 		}
-		this.ui_content[1].draw_image();
+		this.ui_content[1].draw_image(0, 0);
 	}
 	
 	this.press_construckt_wall_button = function(){
@@ -249,7 +249,7 @@ function Window_Shop(){
 			this.ui_content[2].pictur_y = 0;
 			this.ui_content[2].label = "Baue Wand";
 		}
-		this.ui_content[2].draw_image();
+		this.ui_content[2].draw_image(0, 0);
 	}
 	
 	this.press_construckt_room_button = function(){
@@ -280,7 +280,7 @@ function Window_Shop(){
 			this.construct_menue.hide_menue();
 			
 		}
-		this.ui_content[3].draw_image();
+		this.ui_content[3].draw_image(0, 0);
 	}
 	
 	this.press_delet_button = function(){
@@ -308,7 +308,7 @@ function Window_Shop(){
 			this.ui_content[4].pictur_y = 0;
 			this.ui_content[4].label = "Abreißen";
 		}
-		this.ui_content[4].draw_image();
+		this.ui_content[4].draw_image(0, 0);
 	}	
 	
 	//Leitet den Sekundentick der Uhr an die Kacheln weiter
