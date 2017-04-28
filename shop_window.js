@@ -130,6 +130,12 @@ function Window_Shop(){
 			
 			case 6: switch_window(2);
 					break;
+				
+			case 7: game.hire_worker();
+					break;
+					
+			case 8: game.fire_worker();
+					break;
 		}
 	}
 	
@@ -168,7 +174,7 @@ function Window_Shop(){
 					source.monitor.unhighlight();
 				}
 				else if(source.funiture != null){
-					
+					game.delete_funiture(source);
 				}
 			}
 		}

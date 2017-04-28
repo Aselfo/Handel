@@ -41,6 +41,9 @@ function Window_Storage(){
 			if(typeof storage[i] !== "undefined"){
 				this.storage_content[i].own_backend = storage[i];
 			}
+			else{
+				this.storage_content[i].own_backend = null;
+			}
 		}
 		ui_canvas.clearRect(0, 60, 1200, 590)
 		ui_canvas.fillStyle = "black";

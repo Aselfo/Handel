@@ -5,7 +5,11 @@ var game = new Game();						//Instanz des Spiels
 var head_bar;								//Instanz der Kopfzeile
 var windows = [];							//Array mit den Instanzen der Fenster
 
-var mouse_over_tooltip = new Tooltip(); 	//Fenster für mousover tooltips
+var mouse_over_tooltip = new Tooltip(); 				//Fenster für mousover tooltips
+var popup_message = new Popup_Message();				//Fenster für Popup Nachrichten
+var confirm_request_message = new Confirm_Request();	//Fenster für Bestätigungsabfragen
+
+var popup_message_visible = false;						//Flag ob das Popupfenster gerade sichtbar ist
 
 //Variablen der Maus- und Sichtfeldbewegung
 var actual_window = 0;					//Angabe welches Fenster gerade aktiv ist
@@ -55,7 +59,21 @@ var mouse_down_listener = function(event){
 
 //Funktion die aufgerufen wird wenn der Mausbutton innerhalb des Wrappers losgelassen wird.
 var mouse_up_listener = function(event){
-	windows[actual_window].mouse_up();
+	if(popup_message_visible){
+		next_message();
+	}
+	else{
+		windows[actual_window].mouse_up();
+	}
+}
+
+//Zeigen einer Popup_Message
+var show_message = function(message){
+	popup_message.add_message(message);
+}
+
+var next_message = function(){
+	popup_message.next_message();
 }
 
 function Game(){
@@ -487,6 +505,240 @@ function Game(){
 		}
 		rooms = array;
 	}
+
+	//Löscht Funiture Objekte
+	this.delete_funiture = function(tile){
+		if(tile.funiture.room.kind_of_room == 1){
+			this.delete_storage(tile);
+		}
+		else{
+			tile.funiture = null;
+			tile.own_ui.draw_image();
+		}
+	}
+	
+	//Löscht Funiture Objekte das Lagerplätz erzeug
+	this.delete_storage = function(tile){
+		if(this.storage_deletable(tile.funiture, false)){
+			for(var i = 0; i < tile.funiture.storag_stacks.length; i++){
+				var new_array = [];
+				for(var j = 0; j < storage.length; j++){
+					if(storage[j] != tile.funiture.storag_stacks[i]){
+						new_array.push(storage[j]);
+					}
+				}
+				storage = new_array;
+			}
+			this.storage_deletable(tile.funiture, true);
+			tile.funiture = null;
+			tile.own_ui.draw_image();
+		}
+	}
+	
+	//Prüft ob eine Lagereinrichtung gelöscht werden kann
+	this.storage_deletable = function(funiture, check_delet){
+		var deletable = true;
+		var funiture_empty = true;
+		var ware_stacks = funiture.storag_stacks;
+		var blocking_wares = [];
+		for(var i = 0; i < ware_stacks.length; i++){
+			if(ware_stacks[i].ware != null){
+				funiture_empty = false;
+				var enlisted = false;
+				for(var j = 0; j < blocking_wares.length; j++){
+					if(blocking_wares[j][0].id == ware_stacks[i].ware.id){
+						blocking_wares[j][1] += ware_stacks[i].stored_amount;
+						enlisted = true;
+						break;
+					}
+				}
+				if(!enlisted){
+					blocking_wares.push([ware_stacks[i].ware, ware_stacks[i].stored_amount]);
+				}
+			}
+			else{
+			}
+		}
+		if(!funiture_empty){
+			var empty_space = [];
+			for(var i = 0; i < storage.length; i++){
+				if(ware_stacks.indexOf(storage[i]) == (-1)){
+					if(storage[i].ware == null){
+						empty_space.push(storage[i]);
+					}
+					else{
+						for(var j = 0; j < blocking_wares.length; j++){
+							if(storage[i].ware.id == blocking_wares[j][0].id && storage[i].stored_amount < storage[i].stack_size){
+								if(blocking_wares[j][1] >= (storage[i].stack_size - storage[i].stored_amount)){
+									blocking_wares[j][1] -= storage[i].stack_size - storage[i].stored_amount;
+									if(check_delet){
+										storage[i].stored_amount = storage[i].stack_size;
+									}
+								}
+								else{
+									if(check_delet){
+										storage[i].stored_amount += blocking_wares[j][1];
+									}
+									blocking_wares[j][1] = 0;
+								}	
+							}
+						}
+					}
+				}
+			}
+			var sorted_blocking_array = [];
+			while(blocking_wares.length > 0){
+				var bigest_stack = [null,0];
+				for(var i = 0; i < blocking_wares.length; i++){
+					if(bigest_stack[1] < blocking_wares[i][1]){
+						bigest_stack = blocking_wares[i];
+					}
+				}
+				var new_array = [];
+				for(var i = 0; i < blocking_wares.length; i++){
+					if(blocking_wares[i] != bigest_stack){
+						new_array.push(blocking_wares[i]);
+					}
+				}
+				blocking_wares = new_array;
+				sorted_blocking_array.push(bigest_stack);
+			}
+			var sorted_storage_array = [];
+			var storage_copy = empty_space;
+			while(storage_copy.length > 0){
+				var bigest_storage = storage_copy[0];
+				for(var i = 0; i < storage_copy.length; i++){
+					if(bigest_storage.stack_size < storage_copy[i].stack_size){
+						bigest_storage = storage_copy[i];
+					}
+				}
+				var new_array = [];
+				for(var i = 0; i < storage_copy.length; i++){
+					if(storage_copy[i] != bigest_storage){
+						new_array.push(storage_copy[i]);
+					}
+				}
+				storage_copy = new_array;
+				sorted_storage_array.push(bigest_storage);
+			}
+			
+			for(var i = 0; i < sorted_blocking_array.length; i++){
+				for(var j = 0; j < sorted_storage_array.length; j++){
+					if(sorted_storage_array[j].stack_size >= sorted_blocking_array[i][1]){
+						if(check_delet){
+							sorted_storage_array[j].ware = sorted_blocking_array[i][0];
+							sorted_storage_array[j].stored_amount = sorted_blocking_array[i][1];
+						}
+						sorted_blocking_array[i][1] = 0;
+						var new_array = [];
+						for(var i = 0; i < sorted_storage_array.lenght; i++){
+							if(sorted_storage_array[i] != sorted_storage_array[j]){
+								new_array.push(sorted_storage_array[i]);
+							}
+						}
+						sorted_storage_array = new_array;
+						break;
+					}
+					else{
+						sorted_blocking_array[i][1] -= sorted_storage_array[j].stack_size;
+						if(check_delet){
+							sorted_storage_array[j].ware = sorted_blocking_array[i][0];
+							sorted_storage_array[j].stored_amount = sorted_storage_array[j].stack_size;
+						}
+						var new_array = [];
+						for(var i = 0; i < sorted_storage_array.lenght; i++){
+							if(sorted_storage_array[i] != sorted_storage_array[j]){
+								new_array.push(sorted_storage_array[i]);
+							}
+						}
+						sorted_storage_array = new_array;
+					}
+				}
+			}
+			for(var i = 0; i < sorted_blocking_array.length; i++){
+				if(sorted_blocking_array[i][1] != 0){
+					deletable = false;
+					break;
+				}
+			}
+			
+		}
+		return deletable;
+	}
+	
+	//neuen Arbeiter einstellen
+	this.hire_worker = function(){
+		if(money >= 100){
+			money -= 100;
+			workforce++;
+			free_worker++;
+			game.head_bar.update_workforce();
+			game.head_bar.update_money();
+		}
+	}
+	
+	//Arbeiter entlassen
+	this.fire_worker = function(){
+		if(workforce > 0 && free_worker > 0){
+			workforce--;
+			free_worker--;
+			game.head_bar.update_workforce();
+		}
+	}
+	
+	//Lagert eine produzierte oder gekaufte Ware ein
+	this.store_ware = function(ware_category, ware_id, amount){
+		var place_found = false;
+		var new_values = [];
+		var new_ids = [];
+		
+		for(var i = 0; i < storage.length; i++){
+			new_values[i] = storage[i].stored_amount;
+			new_ids[i] = storage[i].ware;
+		}
+		
+		for(var i = 0; i < storage.length; i++){
+			if(new_ids[i] != null && storage[i].ware.id == ware_id && storage[i].ware.category_id == ware_category){
+				if(storage[i].stack_size >= new_values[i] + amount){
+					new_values[i] += amount;
+					amount = 0;
+					place_found = true;
+					break;
+				}
+				else if(storage[i].stack_size != new_values[i]){
+					amount -= storage[i].stack_size - new_values[i];
+					new_values[i] = storage[i].stack_size;
+				}
+			}
+		}
+		if(!place_found){
+			for(var i = 0; i < storage.length; i++){
+				if(new_ids[i] == null){
+					new_ids[i] = existing_wares[ware_category][ware_id];
+					if(storage[i].stack_size >= amount){
+						new_values[i] += amount;
+						amount = 0;
+						place_found = true;
+						break;
+					}
+					else{
+						amount -= storage[i].stack_size;
+						new_values[i] = storage[i].stack_size;
+					}
+				}
+			}
+		}
+		if(!place_found){
+			//show_message("Lager voll");
+		}
+		else{
+			for(var i = 0; i < storage.length; i++){
+				storage[i].stored_amount = new_values[i];
+				storage[i].ware = new_ids[i];
+			}
+		}
+		return place_found;
+	}
 }
 
 //wechselt zwischen verschiedenen fenstern
@@ -518,9 +770,9 @@ function define_existing_wares(){
 	existing_wares[4] = [];
 	existing_wares[5] = [];
 	existing_wares[5][0] = new Ware(5, 0, "Heiltrank", 60, 30, "Ein Trank der kleine Wunden heilt", [[3, 0, 1]], 10);
-	existing_wares[5][1] = new Ware(5, 0, "Manatrank", 80, 40, "Ein Trank der etwas Mana wiederherstellt", [[3, 4, 2]], 15);
-	existing_wares[5][2] = new Ware(5, 0, "Schlafmittel", 70, 35, "Ein Schlafmittel für Schlafprobleme", [[3, 0, 1],[3, 1, 1]], 15);
-	existing_wares[5][3] = new Ware(5, 0, "Gegengift", 120, 60, "Ein Gegenmittel für die meisten gewöhnlichen Gifte", [[3, 0, 2],[3, 3, 1]], 30);
+	existing_wares[5][1] = new Ware(5, 1, "Manatrank", 80, 40, "Ein Trank der etwas Mana wiederherstellt", [[3, 4, 2]], 15);
+	existing_wares[5][2] = new Ware(5, 2, "Schlafmittel", 70, 35, "Ein Schlafmittel für Schlafprobleme", [[3, 0, 1],[3, 1, 1]], 15);
+	existing_wares[5][3] = new Ware(5, 3, "Gegengift", 120, 60, "Ein Gegenmittel für die meisten gewöhnlichen Gifte", [[3, 0, 2],[3, 3, 1]], 30);
 }	
 	
 //Erstellt die Liste aller Existierender Einrichtungsgegenstände
