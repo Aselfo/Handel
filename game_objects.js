@@ -17,6 +17,70 @@ function draw_background(canvas, x, y, width, height, color){
 	}
 }
 
+function customer_enters(offer){
+	console.log("moeglicher Kunde");
+	var customer_id; 
+	var random = Math.random();
+	if(random > 0.66){
+		customer_id = 2;
+	}
+	else if(random > 0.33){
+		customer_id = 1;
+	}
+	else if(random >= 0){
+		customer_id = 0;
+	}
+	var customer = existing_customers[customer_id];
+	var preference = [];
+	var chance_for_enter = 0.2;
+	var found_in_store = [];
+	for(var i = 0; i < offer.length; i++){
+		if(found_in_store[offer[i].new_product] == null){
+			found_in_store[offer[i].new_product] = 0;
+		}
+	}
+	for(i in customer.preference){
+		preference.push([existing_wares[customer.preference[i][0]][customer.preference[i][1]],customer.preference[i][2],customer.preference[i][3],customer.preference[i][4]]);
+		for(j in offer){
+			if(offer[j].new_product == preference[i][0]){
+				chance_for_enter += (preference[i][1]/2^found_in_store[offer[j].new_product]);
+				found_in_store[offer[j].new_product]++;
+			}
+		}  
+	}
+	if(Math.random() < chance_for_enter){
+		for(i in preference){
+			var left = 0;
+			for(j in offer){
+				if(offer[j].new_product == preference[i][0]){
+					if(left == 0){
+						var base_price = offer[j].new_product.buy_price;
+						var buy_chance = 1 - ((offer[j].sell_price - (base_price)) / ((base_price * (1 + preference[i][3])) - base_price));
+						var amount = preference[i][2] * buy_chance;
+						console.log(amount);
+						if(Math.random() <= (((amount * 100)%100)/100)){
+							if((left = offer[j].buy_item(Math.ceil(amount))) == 0){
+								break;
+							}
+						}
+						else{
+							if((left = offer[j].buy_item(Math.floor(amount))) == 0){
+								break;
+							}
+						}
+						console.log(left);
+					}
+					else{
+						if(left = offer[j].buy_item(left) < 0){
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 //-------------Algemeine UI Objekte-------------------------------------------
 //Klasse für Menüfenster
 function Ui_Part(canvas, x, y, width, height, color_id, own_parent){
@@ -89,6 +153,7 @@ function Scrollable_Ui_Part(canvas, x, y, width, height, color_id, own_parent){
 	
 	this.own_parent = own_parent;
 	this.sub_parts = [];
+	this.unscrollt_sub_parts = [];
 	this.scroll_position = 0;
 	this.up_button = new Scroll_Button(0, x + width - 40, y + 10, this, true);
 	this.down_button = new Scroll_Button(1, x + width - 40, y + height - 40, this, false);
@@ -112,6 +177,11 @@ function Scrollable_Ui_Part(canvas, x, y, width, height, color_id, own_parent){
 					this.sub_parts[i].draw_image(0, this.scroll_position);
 				}
 			}
+			for(var i = 0; i < this.unscrollt_sub_parts.length; i++){
+				if((this.unscrollt_sub_parts[i].y) > (this.y) && (this.unscrollt_sub_parts[i].y + this.unscrollt_sub_parts[i].height) < this.y + this.height){
+					this.unscrollt_sub_parts[i].draw_image(0, 0);
+				}
+			}
 		}
 	}
 	
@@ -120,6 +190,13 @@ function Scrollable_Ui_Part(canvas, x, y, width, height, color_id, own_parent){
 			for(var i = 0; i < this.sub_parts.length; i++){
 				if((this.sub_parts[i].y - this.scroll_position) > (this.y) && (this.sub_parts[i].y + this.sub_parts[i].height - this.scroll_position) < this.y + this.height){	
 					if(this.sub_parts[i].mouse_over()){
+						return true;
+					}
+				}
+			}
+			for(var i = 0; i < this.unscrollt_sub_parts.length; i++){
+				if((this.unscrollt_sub_parts[i].y) > (this.y) && (this.unscrollt_sub_parts[i].y + this.unscrollt_sub_parts[i].height) < this.y + this.height){	
+					if(this.unscrollt_sub_parts[i].mouse_over()){
 						return true;
 					}
 				}
@@ -145,6 +222,10 @@ function Scrollable_Ui_Part(canvas, x, y, width, height, color_id, own_parent){
 			this.sub_parts[i].x = x + this.sub_parts[i].save_x;
 			this.sub_parts[i].y = y + this.sub_parts[i].save_y;
 		}
+		for(var i = 0; i < this.unscrollt_sub_parts.length; i++){
+			this.unscrollt_sub_parts[i].x = x + this.unscrollt_sub_parts[i].save_x;
+			this.unscrollt_sub_parts[i].y = y + this.unscrollt_sub_parts[i].save_y;
+		}
 	}
 	
 	this.activate = function(){
@@ -154,6 +235,11 @@ function Scrollable_Ui_Part(canvas, x, y, width, height, color_id, own_parent){
 				this.sub_parts[i].is_activ = true;
 			}
 		}
+		for(var i = 0; i < this.unscrollt_sub_parts.length; i++){
+			if(this.unscrollt_sub_parts[i].label != ""){
+				this.unscrollt_sub_parts[i].is_activ = true;
+			}
+		}
 		this.draw_image();
 	}
 	
@@ -161,6 +247,9 @@ function Scrollable_Ui_Part(canvas, x, y, width, height, color_id, own_parent){
 		this.is_activ = false;
 		for(var i = 0; i < this.sub_parts.length; i++){
 			this.sub_parts[i].is_activ = false;
+		}
+		for(var i = 0; i < this.unscrollt_sub_parts.length; i++){
+			this.unscrollt_sub_parts[i].is_activ = false;
 		}
 		ui_canvas.clearRect(this.x - 1, this.y - 1, this.width+ 2, this.height + 2);
 	}
@@ -232,6 +321,7 @@ function UI_Button(id, x, y, own_parent, label){
 	this.mouse_over = function(){
 		if(mpos_x > (this.x - this.scroll_x) && mpos_x <= (this.x - this.scroll_x + this.width) && mpos_y > (this.y - this.scroll_y) && mpos_y <= (this.y - this.scroll_y + this.height) && this.is_activ){
 			if(!this.mouse_over_status){
+
 				focus_object.mouse_out();
 				focus_object = this;
 				this.mouse_over_status = true;
@@ -411,13 +501,14 @@ function Confirm_Request(){
 	this.height = 0;
 	
 	this.actual_parent = null;
-	
 	this.ok_button = new UI_Button(1, 0, 0, this, "Ja");
 	this.ok_button.canvas = popup_canvas;
 	this.ok_button.width = 97;
 	this.abort_button = new UI_Button(0, 0, 0, this, "Abbrechen");
 	this.abort_button.canvas = popup_canvas;
 	this.abort_button.width = 97;
+	
+	this.is_activ = false;
 	
 	this.request_answer = function(request_source, x, y, request){
 		this.actual_parent = request_source;
@@ -457,16 +548,26 @@ function Confirm_Request(){
 		}
 		this.ok_button.enable_button();
 		this.abort_button.enable_button();
+		this.is_activ = true;
 	}
 	
 	this.mouse_over = function(){
-		if(this.ok_button.mouse_in()){
-			return true;
+		if(this.is_activ){
+			if(this.ok_button.mouse_over()){
+				return true;
+			}
+			else if(this.abort_button.mouse_over()){
+				return true;
+			}
+			else{
+				focus_object.mouse_out();
+				focus_object = default_focus;
+			}
+			return false;
 		}
-		if(this.abort_button.mouse_in()){
-			return true;
+		else{
+			return false;
 		}
-		return false;
 	}
 	
 	this.button_click = function(source){
@@ -476,9 +577,8 @@ function Confirm_Request(){
 		}
 		this.ok_button.disable_button();
 		this.abort_button.disable_button();
-		popup_canvas.clearRect(this.x, this.y, this.width, this.height);
+		popup_canvas.clearRect(this.x - 1, this.y - 1, this.width + 1, this.height + 1);
 	}
-	
 }
 
 //Klasse für die Spiel Uhr
@@ -522,7 +622,12 @@ function Clock(){
 		ui_canvas.drawImage(image_repository.head_bar_background, 10, 20, 150, 20 ,10, 20, 150, 20);
 		ui_canvas.fillText(time_string, 10, 35);
 		
-		windows[0].timer_tick();
+		windows[0].timer_tick(1);
+		for(i in rooms){
+			if(rooms[i].kind_of_room == 4){
+				rooms[i].time_tick(1);
+			}
+		}
 	}
 }
 
@@ -612,6 +717,7 @@ function Construckt_Menue(){
 			else{
 				this.menue_window.sub_parts[i].label = "";
 				this.menue_window.sub_parts[i].mouse_over_text = "";
+				this.menue_window.sub_parts[i].is_activ = false;
 			}
 			this.menue_window.set_position(x, y);
 			room_or_funiture = false;
@@ -630,6 +736,379 @@ function Construckt_Menue(){
 		else{
 			windows[0].chose_funiture(source, tile_backup);
 		}
+	}
+}
+
+//Klasse für das Craftingfenster des Shops
+function Crafting_Menue(own_parent){
+	this.x = 360;
+	this.y = 105;
+	
+	this.scroll_panel = new Scrollable_Ui_Part(ui_canvas, this.x, this.y, 480, 435, 0, own_parent);
+	this.scroll_panel.is_activ = false;
+	this.scroll_panel.unscrollt_sub_parts[0] = new UI_Button(2, this.x + 140, this.y + 390, this, "Produzieren");
+	this.scroll_panel.unscrollt_sub_parts[0].is_activ = true;
+	this.ware_selected = null;
+	
+	this.actual_tile;
+	this.own_parent = own_parent;
+	this.draw_image = function(){
+		
+	}
+	
+	this.mouse_over = function(){
+		return this.scroll_panel.mouse_over();
+	}
+	
+	this.show_crafting_menue = function(tile){
+		this.actual_tile = tile;
+		var options = [];
+		for(i in existing_funiture[tile.room.kind_of_room][tile.funiture.id].craftable_wares){
+			options.push(new Craftabel_Tile(this.x + 10, this.y + i * 130 + 10 , existing_funiture[tile.room.kind_of_room][tile.funiture.id].craftable_wares[i], this));
+		}
+		this.scroll_panel.sub_parts = options;
+		this.scroll_panel.activate();
+	}
+	
+	this.hide_crafting_menue = function(){
+		this.scroll_panel.deactivate();
+		this.own_parent.menue_open = false;
+	}
+	
+	this.button_click = function(source){
+		if(this.ware_selected != null){
+			game.produce_ware(this.actual_tile.funiture, this.ware_selected.ware, this.ware_selected.quantity);
+			this.hide_crafting_menue();
+		}else{
+			this.hide_crafting_menue();
+		}
+	}
+}
+
+//Klasse für das Verkaufsfenster des Shops
+function Sell_Menue(own_parent){
+	this.x = 360;
+	this.y = 105;
+	this.scroll_panel = new Scrollable_Ui_Part(ui_canvas, this.x, this.y, 480, 417, 0, own_parent);
+	this.scroll_panel.is_activ = false;
+	this.scroll_panel.unscrollt_sub_parts[0] = new UI_Button(2, this.x + 140, this.y + 372, this, "Verkaufen");
+	this.scroll_panel.unscrollt_sub_parts[0].is_activ = true;
+	
+	this.own_parent = own_parent;
+	this.ware_selected = null;
+	
+	this.actual_tile;
+	this.draw_image = function(){}
+	
+	this.mouse_over = function(){
+		return this.scroll_panel.mouse_over();
+	}
+	
+	this.show_sell_menue = function(tile){
+		this.actual_tile = tile;
+		var options = [];
+		var available_wares = game.get_available_wares()
+		
+		for(i in available_wares){
+			options.push(new Sell_Tile(this.x + 10, this.y + i * 94 + 10, available_wares[i][0], available_wares[i][1], this));
+		}
+		this.scroll_panel.sub_parts = options;
+		this.scroll_panel.activate();
+	}
+	
+	this.hide_sell_menue = function(){
+		this.scroll_panel.deactivate();
+		this.own_parent.menue_open = false;
+	}
+
+	this.button_click = function(source){
+		if(this.ware_selected != null){
+			
+			if(this.ware_selected.already_on_sale){
+				var price = this.actual_tile.room.already_on_sale(this.ware_selected.ware);
+				if(price != null && price != this.ware_selected.price){
+					this.action_on_hold = function(){this.actual_tile.room.new_price(this.ware_selected.ware, this.ware_selected.price);
+													 game.sell_ware(this.actual_tile.funiture, this.ware_selected.ware, this.ware_selected.quantity, this.ware_selected.price);
+													 this.hide_sell_menue();}
+					confirm_request_message.request_answer(this, mpos_x, mpos_y, "Neuen Preis für alle übernehmen?");
+				}
+				else{
+					game.sell_ware(this.actual_tile.funiture, this.ware_selected.ware, this.ware_selected.quantity, this.ware_selected.price);
+					this.hide_sell_menue();
+				}
+			}
+			else{
+				game.sell_ware(this.actual_tile.funiture, this.ware_selected.ware, this.ware_selected.quantity, this.ware_selected.price);
+				this.hide_sell_menue();
+			}
+		}
+		else{
+			this.hide_sell_menue();
+		}
+	}
+}
+
+//Klasse für ein Anzeigefeld für eine Herstellbare Ware
+function Craftabel_Tile(x, y, ware, own_parent){
+	this.scroll_up_button = new Scroll_Button(0, x + 350, y + 10, this, true);
+	this.scroll_down_button = new Scroll_Button(1, x + 385, y + 10, this, false);
+	
+	this.own_parent = own_parent;
+	
+	this.x = x;
+	this.y = y;
+	
+	this.width = 425;
+	this.height = 120;
+	
+	this.scroll_x = 0;
+	this.scroll_y = 0;
+	
+	this.pictur_y = 0;
+	this.selected = false;
+	this.mouse_over_status = false;		//Flag ob die Maus auf diesem Knopf liegt 
+	this.is_activ = false;
+	
+	this.ware = existing_wares[ware[0]][ware[1]];
+	
+	this.quantity = 1;
+	this.draw_image = function(scroll_x, scroll_y){
+		this.scroll_x = scroll_x;
+		this.scroll_y = scroll_y;
+		ui_canvas.drawImage(image_repository.crafting_blueprint, 0, this.pictur_y, this.width, this.height, this.x, this.y - this.scroll_y, this.width, this.height);
+		ui_canvas.font = "bold 12px Arial";
+		ui_canvas.fillText(this.ware.name, this.x + 15, this.y + 30 - this.scroll_y);
+		var seconds = this.ware.production_time % 60;
+		var minutes = ((this.ware.production_time % 3600) - seconds) / 60;
+		var hour = (this.ware.production_time - (this.ware.production_time % 3600)) / 3600;
+		if(seconds < 10){
+			seconds = "0" + seconds;
+		}
+		if(minutes < 10){
+			minutes = "0" + minutes;
+		}
+		if(hour < 10){
+			hour = "0" + hour;
+		}
+		var time_string = hour + ":" + minutes + ":" + seconds;
+		ui_canvas.fillText(time_string, this.x + 153, this.y + 30 - this.scroll_y);
+		ui_canvas.fillText(this.quantity, this.x + 291, this.y + 30 - this.scroll_y);
+		for(var i = 0; i < this.ware.production_cost.length; i++){
+			if(i < 3){
+				if(this.quantity > 0){
+					ui_canvas.fillText(existing_wares[this.ware.production_cost[i][0]][this.ware.production_cost[i][1]].name + " " + this.ware.production_cost[i][2] * this.quantity + "/" + game.count_ware(this.ware.production_cost[i][0], this.ware.production_cost[i][1]), this.x + 15 + (i * 138), this.y + 65 - this.scroll_y);	
+				}
+				else{
+					ui_canvas.fillText(existing_wares[this.ware.production_cost[i][0]][this.ware.production_cost[i][1]].name + " " + this.ware.production_cost[i][2] + "/" + game.count_ware(this.ware.production_cost[i][0], this.ware.production_cost[i][1]), this.x + 15 + (i * 138), this.y + 65 - this.scroll_y);	
+				}
+			}
+			else{
+				if(this.quantity > 0){
+					ui_canvas.fillText(existing_wares[this.ware.production_cost[i][0]][this.ware.production_cost[i][1]].name + " " + this.ware.production_cost[i][2] * this.quantity + "/" + game.count_ware(this.ware.production_cost[i][0], this.ware.production_cost[i][1]), this.x + 15 + ((i%3) * 138), this.y + 100 - this.scroll_y);	
+				}
+				else{
+					ui_canvas.fillText(existing_wares[this.ware.production_cost[i][0]][this.ware.production_cost[i][1]].name + " " + this.ware.production_cost[i][2] + "/" + game.count_ware(this.ware.production_cost[i][0], this.ware.production_cost[i][1]), this.x + 15 + ((i%3) * 138), this.y + 100 - this.scroll_y);	
+				}
+			}
+		}
+		
+		this.scroll_up_button.draw_image(this.scroll_x, this.scroll_y);
+		this.scroll_down_button.draw_image(this.scroll_x, this.scroll_y);
+	}
+	
+	this.mouse_over = function(){
+		if(mpos_x > this.x && mpos_x <= (this.x + this.width) && mpos_y > (this.y  - this.scroll_y) && mpos_y <= (this.y + this.height - this.scroll_y)){
+			if(this.selected){
+				if(this.scroll_up_button.mouse_over(this.scroll_x, this.scroll_y)){}
+				else if(this.scroll_down_button.mouse_over(this.scroll_x, this.scroll_y)){}
+				else{
+					if(!this.mouse_over_status){
+						this.mouse_over_status = true;
+						focus_object.mouse_out();
+						focus_object = this;
+					}
+				}
+			}
+			else{
+				if(!this.mouse_over_status){
+					this.mouse_over_status = true;
+					focus_object.mouse_out();
+					focus_object = this;
+				}
+			}
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+	
+	this.mouse_out = function(){
+		this.mouse_over_status = false;
+	}
+	
+	this.mouse_down = function(){
+	
+	}
+	
+	this.mouse_up = function(){
+		if(!this.selected){
+			if(this.own_parent.ware_selected != null){
+				this.own_parent.ware_selected.mouse_up();
+			}
+			this.own_parent.ware_selected = this;
+			this.selected = true;
+			this.pictur_y = 120;
+		}
+		else{
+			this.own_parent.ware_selected = null;
+			this.selected = false;
+			this.pictur_y = 0;
+			this.quantity = 1;
+		}
+		this.draw_image(this.scroll_x, this.scroll_y);
+	}
+	
+	this.button_click = function(source){
+		switch(source){
+				case 0: if(this.quantity < 1000){
+							this.quantity++;
+						}
+						break;
+				case 1: if(this.quantity > 0){
+							this.quantity--;
+						}
+						break;
+		}
+		this.draw_image(this.scroll_x, this.scroll_y);
+	}
+}
+
+//Klasse für ein Anzeigefeld für eine Verkaufbare Ware
+function Sell_Tile(x, y, ware, available_quantity, own_parent){
+	this.scroll_quantity_up_button = new Scroll_Button(0, x + 350, y + 10, this, true);
+	this.scroll_quantity_down_button = new Scroll_Button(1, x + 385, y + 10, this, false);
+	this.scroll_price_up_button = new Scroll_Button(2, x + 350, y + 45, this, true);
+	this.scroll_price_down_button = new Scroll_Button(3, x + 385, y + 45, this, false);
+	this.own_parent = own_parent;
+	
+	this.x = x;
+	this.y = y;
+	this.scroll_x = 0;
+	this.scroll_y = 0;
+	this.width = 425;
+	this.height = 84;
+	this.pictur_y = 0;
+	this.selected = false;
+	this.already_on_sale = false;
+	
+	this.is_activ = false;
+	this.mouse_over_status = false;		//Flag ob die Maus auf diesem Knopf liegt
+	
+	this.ware = ware;
+	this.available_quantity = available_quantity;
+	this.quantity = 1;
+	this.price = this.ware.buy_price;
+	this.draw_image = function(scroll_x, scroll_y){
+		if(this.is_activ){
+			this.scroll_x = scroll_x;
+			this.scroll_y = scroll_y;
+			ui_canvas.drawImage(image_repository.sellable_ware, 0, this.pictur_y, 425, 84, this.x - this.scroll_x, this.y - this.scroll_y, 425, 84);
+			ui_canvas.font = "bold 12px Arial";
+			ui_canvas.fillText(this.ware.name, this.x + 15, this.y + 30);
+			ui_canvas.fillText(this.available_quantity, this.x + 153, this.y + 30);
+			ui_canvas.fillText(this.quantity, this.x + 291, this.y + 30);
+			ui_canvas.fillText(this.ware.sell_price + "$", this.x + 15, this.y + 65);
+			ui_canvas.fillText(this.price + "$", this.x + 270, this.y + 65);
+			
+			this.scroll_quantity_up_button.draw_image(this.scroll_x, this.scroll_y);
+			this.scroll_quantity_down_button.draw_image(this.scroll_x, this.scroll_y);
+			this.scroll_price_up_button.draw_image(this.scroll_x, this.scroll_y);
+			this.scroll_price_down_button.draw_image(this.scroll_x, this.scroll_y);
+		}
+	}
+	
+	this.mouse_over = function(){
+		if(mpos_x > (this.x - this.scroll_x) && mpos_x <= (this.x + 425 - this.scroll_x) && mpos_y > (this.y - this.scroll_y) && mpos_y <= (this.y + 84 - this.scroll_y)){
+			if(this.selected){
+				if(this.scroll_quantity_up_button.mouse_over()){}
+				else if(this.scroll_quantity_down_button.mouse_over()){}
+				else if(this.scroll_price_up_button.mouse_over()){}
+				else if(this.scroll_price_down_button.mouse_over()){}
+				else{
+					if(!this.mouse_over_status){
+						this.mouse_over_status = true;
+						focus_object.mouse_out();
+						focus_object = this;
+					}
+				}
+			}
+			else{
+				if(!this.mouse_over_status){
+					this.mouse_over_status = true;
+					focus_object.mouse_out();
+					focus_object = this;
+				}
+			}
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+	
+	this.mouse_out = function(){
+		this.mouse_over_status = false;
+	}
+	
+	this.mouse_down = function(){
+		
+	}
+	
+	this.mouse_up = function(){
+		if(!this.selected){
+			if(this.own_parent.ware_selected != null){
+				this.own_parent.ware_selected.mouse_up();
+			}
+			var actual_price = this.own_parent.actual_tile.room.already_on_sale(this.ware);
+			if(actual_price != null){
+				this.price = actual_price;
+				this.already_on_sale = true;
+			}
+			this.own_parent.ware_selected = this;
+			this.selected = true;
+			this.pictur_y = 84;
+		}
+		else{
+			this.own_parent.ware_selected = null;
+			this.selected = false;
+			this.pictur_y = 0;
+			this.quantity = 1;
+			this.price = this.ware.sell_price;
+		}
+		this.draw_image(this.scroll_x, this.scroll_y);
+	}
+	
+	this.button_click = function(source){
+		switch(source){
+				case 0: if(this.quantity < this.available_quantity){
+							this.quantity++;
+						}
+						break;
+				case 1: if(this.quantity > 0){
+							this.quantity--;
+						}
+						break;
+				case 2: if(this.price < 100000){
+							this.price++;
+						}
+						break;
+				case 3: if(this.price > this.ware.sell_price){
+							this.price--;
+						}
+						break;
+		}
+		this.draw_image(this.scroll_x, this.scroll_y);
 	}
 }
 
@@ -698,9 +1177,9 @@ function Shop_Tile_UI(x, y, border_left, border_top, own_parent, own_back_end){
 	}
 	
 	//gibt einen Timertick an das Objekt weiter das auf diesem Feld liegt (wenn vorhanden) und zeichnet sich neu
-	this.count_down = function(){
-		if(this.own_back_end.funiture != null && this.own_back_end.funiture.time_left != 0){
-			this.own_back_end.funiture.count_down();
+	this.count_down = function(seconds){
+		if(this.own_back_end.funiture != null && (this.own_back_end.funiture.time_left != 0 || seconds == 0)){
+			this.own_back_end.funiture.count_down(seconds);
 			this.draw_image();
 		}
 	}
@@ -759,7 +1238,7 @@ function Shop_Tile(x_cord, y_cord){
 					else if(this.funiture == null && this.room != null && this.room_deletable()){
 						return 1;
 					}
-					else if(this.funiture != null){
+					else if(this.funiture != null && this.room != null){
 						if(typeof focus_object.own_back_end !== 'undefined' && focus_object.own_back_end.monitor != null){
 							focus_object.own_back_end.monitor.unhighlight();
 						}
@@ -892,7 +1371,7 @@ function Shop_Tile(x_cord, y_cord){
 					else{
 						monitor_2.exit_found = true;
 					}
-					if(monitor_1.exit_found || !monitor_1.room_exists && (monitor_2.exit_found || !monitor_2.room_exists)){
+					if((monitor_1.exit_found || !monitor_1.room_exists) && (monitor_2.exit_found || !monitor_2.room_exists)){
 						return true;
 					}
 				}
@@ -1452,16 +1931,16 @@ function Shop_Tile(x_cord, y_cord){
 			}
 			else{
 				if(this.top_tile != null && this.top_tile != forbidden_tile && !(this.top_tile.room == null && this.top_tile.funiture != null && this.top_tile.funiture.id == 0)){
-					this.top_tile.check_path(monitor, forbidden_tile);
+					this.top_tile.check_shop_path(monitor, forbidden_tile);
 				}
 				if(this.bot_tile != null && this.bot_tile != forbidden_tile && !(this.bot_tile.room == null && this.bot_tile.funiture != null && this.bot_tile.funiture.id == 0)){
-					this.bot_tile.check_path(monitor, forbidden_tile);
+					this.bot_tile.check_shop_path(monitor, forbidden_tile);
 				}
 				if(this.left_tile != null && this.left_tile != forbidden_tile && !(this.left_tile.room == null && this.left_tile.funiture != null && this.left_tile.funiture.id == 0)){
-					this.left_tile.check_path(monitor, forbidden_tile);
+					this.left_tile.check_shop_path(monitor, forbidden_tile);
 				}
 				if(this.right_tile != null && this.right_tile != forbidden_tile && !(this.right_tile.room == null && this.right_tile.funiture != null && this.right_tile.funiture.id == 0)){
-					this.right_tile.check_path(monitor, forbidden_tile);
+					this.right_tile.check_shop_path(monitor, forbidden_tile);
 				}
 			}
 		}
@@ -1504,16 +1983,16 @@ function Ware_Stack_UI(own_parent, x, y){
 	
 	this.pictur_x = 0;							//X position des Bildausschnittes
 	
-	this.own_backend = null;
+	this.own_back_end = null;
 	
 	this.draw_image = function(){
-		if(this.own_backend != null){
+		if(this.own_back_end != null){
 			ui_canvas.drawImage(image_repository.ware_tile , this.pictur_x, 0, 100, 100, this.x, this.y, 100, 100);
-			if(this.own_backend.ware != null){
-				ui_canvas.drawImage(image_repository.wares , 100 * this.own_backend.ware.id, 100 * this.own_backend.ware.category_id, 100, 100, this.x, this.y, 100, 100);
+			if(this.own_back_end.ware != null){
+				ui_canvas.drawImage(image_repository.wares , 100 * this.own_back_end.ware.id, 100 * this.own_back_end.ware.category_id, 100, 100, this.x, this.y, 100, 100);
 			}
 			ui_canvas.font = "bold 15px Arial";
-			ui_canvas.fillText(this.own_backend.stored_amount + "/" + this.own_backend.stack_size, this.x + 65, this.y + 22);
+			ui_canvas.fillText(this.own_back_end.stored_amount + "/" + this.own_back_end.stack_size, this.x + 65, this.y + 22);
 		}
 	}
 	
@@ -1544,11 +2023,11 @@ function Ware_Stack_UI(own_parent, x, y){
 			this.selected = true;
 			this.pictur_x = 100;
 			if(this.own_parent.selected_storage == null){
-				this.own_parent.selected_storage = this;
+				this.own_parent.selected_storage = this.own_back_end;
 			}
 			else{
-				this.own_parent.selected_storage.mouse_up();
-				this.own_parent.selected_storage = this;
+				this.own_parent.selected_storage.own_ui.mouse_up();
+				this.own_parent.selected_storage = this.own_back_end;
 			}
 		}
 		else{
@@ -1594,7 +2073,7 @@ function Ware_Stack(storag, size){
 		if(this.stored_amount == 0){
 			this.ware = null;
 		}
-		this.draw_ware();
+		this.own_ui.draw_image();
 	}
 }
 
@@ -1762,10 +2241,13 @@ function Funiture(room, id, tile){
 	}
 
 	//geht eine Sekunde beim Timer weiter
-	this.count_down = function(){
-		this.time_left--;
-		if(this.time_left == 0){
+	this.count_down = function(seconds){
+		if((this.time_left - seconds) <= 0){
+			this.time_left = 0;
 			this.finish_action();
+		}
+		else{
+			this.time_left -= seconds;
 		}
 	}
 
@@ -1779,6 +2261,7 @@ function Room(id, kind_of_room, member){
 	this.id = id;						//ID des Raums
 	this.kind_of_room = kind_of_room;	//ID des Typs des Raums (Schmiede, Laden, Lager, .)
 	this.member = member; 				//Array mit den Referenzen auf die Kacheln die Teil des Raums sind
+	this.counter = 0;
 	
 	//Funktion um die Instanz des Raums zu löschen inclusiver der Referenzen der Ehemaligen Kacheln auf diesen Raum
 	this.delete_itself = function(){	
@@ -1786,6 +2269,15 @@ function Room(id, kind_of_room, member){
 			this.member[i].room = null;
 			this.member[i].set_room();
 		}
+	}
+	
+	this.add_member = function(tile){
+		member.push(tile);
+		tile.room = this;
+		tile.set_room(this.kind_of_room);
+	}
+
+	this.time_tick = function(seconds){
 	}
 }
 
@@ -1838,4 +2330,10 @@ function Ware(category_id, id, name, buy_price, sell_price, description, product
 			this.description[j] = " " + memory[i];
 		}
 	}
+}
+
+function Customer_Data(id, preference, tolerance){
+	this.id = id;
+	this.preference = preference;
+	this.tolerance = tolerance;
 }

@@ -39,10 +39,11 @@ function Window_Storage(){
 	this.draw_ui_canvas = function(){
 		for(i in this.storage_content){
 			if(typeof storage[i] !== "undefined"){
-				this.storage_content[i].own_backend = storage[i];
+				this.storage_content[i].own_back_end = storage[i];
+				storage[i].own_ui = this.storage_content[i];
 			}
 			else{
-				this.storage_content[i].own_backend = null;
+				this.storage_content[i].own_back_end = null;
 			}
 		}
 		ui_canvas.clearRect(0, 60, 1200, 590)

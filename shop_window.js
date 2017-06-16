@@ -10,10 +10,14 @@ function Window_Shop(){
 	this.game_content = [];
 	
 	this.construct_menue = new Construckt_Menue();
+	this.crafting_menue = new Crafting_Menue(this);
+	this.sell_menue = new Sell_Menue(this);
 	
 	this.construction_mode = 0;									//Aktueller Bau Modus (0:nichts 1:Einrichtung 2:Wände 3:Raum 4:Abreisen)
 	this.new_room_id = 0;
-	var menue_open = false;
+	this.menue_open = false;
+	
+	this.action_on_hold = null;
 	
 	this.init_window = function(){
 		//Initialisieren der Buttons
@@ -65,8 +69,8 @@ function Window_Shop(){
 		}
 		else{
 			var match_found = false;
-			if(menue_open){
-				if(this.construct_menue.mouse_over()){
+			if(this.menue_open){
+				if(this.construct_menue.mouse_over() || this.crafting_menue.mouse_over() || this.sell_menue.mouse_over()){
 					match_found = true;
 				}
 			}
@@ -140,10 +144,26 @@ function Window_Shop(){
 	}
 	
 	this.tile_click = function(source){
-		if(!menue_open){
+		if(!this.menue_open){
+			if(this.construction_mode == 0 && source.room != null && source.funiture != null){
+				if(source.funiture.action_id == 0){
+					if(source.room.kind_of_room == 4){
+						this.sell_menue.show_sell_menue(source);
+						this.menue_open = true;
+					}
+					else if(source.room.kind_of_room < 4 && source.room.kind_of_room > 1){
+						this.crafting_menue.show_crafting_menue(source);
+						this.menue_open = true;
+					}
+				}
+				else if(source.funiture.action_id == 2){
+					this.action_on_hold = function(){var object = source; object.funiture.abort_action();}
+					confirm_request_message.request_answer(this, mpos_x, mpos_y, "Aktion wirklich abbrechen?");
+				}
+			}
 			if(this.construction_mode == 1 && source.action_possible){
 				this.construct_menue.show_funiture_menue(source, mpos_x, mpos_y);
-				menue_open = true;
+				this.menue_open = true;
 			}
 			else if(this.construction_mode == 2 && source.action_possible){
 				if(source.funiture == null){
@@ -178,20 +198,23 @@ function Window_Shop(){
 				}
 			}
 		}
+		else{
+			this.close_all_windows();
+		}
+		source.action_possible = false;
 	}
 	
 	this.chose_room = function(id){
 		this.new_room_id = id;
 		this.construction_mode = 3;
-		menue_open = false;
+		this.menue_open = false;
 		this.construct_menue.hide_menue();
 	}
 	
 	this.chose_funiture = function(id, tile){
 		game.build_funiture(tile.room, id-1, tile);
 		head_bar.update_money(-existing_funiture[tile.room.kind_of_room][id-1].price);
-		menue_open = false;
-		this.construct_menue.hide_menue();
+		this.close_all_windows();
 	}
 	
 	this.press_construckt_button = function(){
@@ -205,13 +228,6 @@ function Window_Shop(){
 			this.ui_content[4].enable_button();
 		}
 		else{
-			this.construction_mode = 0;
-			this.ui_content[1].lock = false;
-			this.ui_content[1].pictur_y = 0;
-			this.ui_content[1].label = "Bauen";
-			this.ui_content[2].disable_button();
-			this.ui_content[3].disable_button();
-			this.ui_content[4].disable_button();
 			if(this.ui_content[2].lock){
 				this.press_construckt_wall_button();
 			}
@@ -222,10 +238,17 @@ function Window_Shop(){
 			if(this.ui_content[4].lock){
 				this.press_delet_button();
 			}
-			if(menue_open){
-				this.construct_menue.hide_menue();
-				menue_open = false;
+			if(this.menue_open){
+				this.close_all_windows();
 			}
+			this.construction_mode = 0;
+			this.ui_content[1].lock = false;
+			this.ui_content[1].pictur_y = 0;
+			this.ui_content[1].label = "Bauen";
+			this.ui_content[2].disable_button();
+			this.ui_content[3].disable_button();
+			this.ui_content[4].disable_button();
+			
 		}
 		this.ui_content[1].draw_image(0, 0);
 	}
@@ -240,9 +263,8 @@ function Window_Shop(){
 			if(this.ui_content[4].lock){
 				this.press_delet_button();
 			}
-			if(menue_open){
-				this.construct_menue.hide_menue();
-				menue_open = false;
+			if(this.menue_open){
+				this.close_all_windows();
 			}
 			this.construction_mode = 2;
 			this.ui_content[2].lock = true;
@@ -266,24 +288,21 @@ function Window_Shop(){
 			if(this.ui_content[4].lock){
 				this.press_delet_button();
 			}
-			if(menue_open){
-				this.construct_menue.hide_menue();
-				menue_open = false;
+			if(this.menue_open){
+				this.close_all_windows();
 			}
 			this.ui_content[3].lock = true;
 			this.ui_content[3].pictur_y = 40;
 			this.ui_content[3].label = "Beenden";
+			this.menue_open = true;
 			this.construct_menue.show_room_menue();
-			menue_open = true;
-			
 		}
 		else{
 			this.ui_content[3].lock = false;
 			this.ui_content[3].pictur_y = 0;
 			this.ui_content[3].label = "Neuer Raum";
 			this.construction_mode = 1;
-			menue_open = false;
-			this.construct_menue.hide_menue();
+			this.close_all_windows();
 			
 		}
 		this.ui_content[3].draw_image(0, 0);
@@ -299,9 +318,8 @@ function Window_Shop(){
 				this.construction_mode = 1;
 				this.new_room_id = 0;
 			}
-			if(menue_open){
-				this.construct_menue.hide_menue();
-				menue_open = false;
+			if(this.menue_open){
+				this.close_all_windows();
 			}
 			this.construction_mode = 4;
 			this.ui_content[4].lock = true;
@@ -317,10 +335,17 @@ function Window_Shop(){
 		this.ui_content[4].draw_image(0, 0);
 	}	
 	
+	this.close_all_windows = function(){
+		this.crafting_menue.hide_crafting_menue();
+		this.sell_menue.hide_sell_menue();
+		this.construct_menue.hide_menue();
+		this.menue_open = false;
+	}
+	
 	//Leitet den Sekundentick der Uhr an die Kacheln weiter
-	this.timer_tick = function(){
+	this.timer_tick = function(seconds){
 		for(var i = 0; i < this.game_content.length; i++){
-			this.game_content[i].count_down();
+			this.game_content[i].count_down(seconds);
 		}
 	}
 }

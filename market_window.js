@@ -60,6 +60,7 @@ function Window_Market(){
 		
 		for(var i = 0; i < 9; i++){
 			this.storage_fields[i] = new Ware_Stack_UI(this, 75 + i * 110, 530); 
+			
 		}
 	}
 	
@@ -72,12 +73,13 @@ function Window_Market(){
 	
 	//Zeichnet das Fenster neu und Meldet den Kacheln sich selbst neu zu Zeichnen
 	this.draw_ui_canvas = function(){
-		for(i in this.storage_fields){
-			if(typeof storage[i] !== "undefined"){
-				this.storage_fields[i].own_backend = storage[i];
+		for(var i = 0; i < 9; i++){
+			if(typeof storage[i + actual_visible_storage] !== "undefined"){
+				this.storage_fields[i].own_back_end = storage[i + actual_visible_storage];
+				storage[i  + actual_visible_storage].own_ui = this.storage_fields[i];
 			}
 			else{
-				this.storage_fields[i].own_backend = null;
+				this.storage_fields[i].own_back_end = null;
 			}
 		}
 		
@@ -181,6 +183,7 @@ function Window_Market(){
 			case 9: this.set_actual_category(5);
 					break;		
 			case 10:if(this.selected_storage != null && this.selected_storage.stored_amount > sell_quantity){
+						
 						sell_quantity++;
 						this.update_sell_price();
 					}
@@ -188,6 +191,16 @@ function Window_Market(){
 			case 11:if(this.selected_storage != null && sell_quantity > 0){
 						sell_quantity--;
 						this.update_sell_price();
+					}
+					break;
+			case 12: if(actual_visible_storage > 0){
+						actual_visible_storage--;
+						this.draw_ui_canvas();
+					}
+					break;
+			case 13: if(actual_visible_storage < (storage.length - 1)){
+						actual_visible_storage++;
+						this.draw_ui_canvas();
 					}
 					break;
 		}
@@ -210,7 +223,7 @@ function Window_Market(){
 		this.ui_parts[8].draw_image();
 		if(this.selected_storage != null && this.selected_storage.ware != null){
 			sell_price = this.selected_storage.ware.sell_price * sell_quantity;
-			ui_canvas.fillText(this.selected_ware.ware.sell_price + "$", 147, 320);
+			ui_canvas.fillText(this.selected_storage.ware.sell_price + "$", 147, 320);
 		}
 		else{
 			sell_price = 0;
@@ -234,7 +247,7 @@ function Window_Market(){
 	
 	this.sell_item = function(){
 		if(this.selected_storage != null && this.selected_storage.ware != null){
-			game.head_bar.update_money(sell_price);
+			head_bar.update_money(sell_price);
 			this.selected_storage.sell_ware(sell_quantity);
 			sell_quantity = 0;
 			this.update_sell_price();
