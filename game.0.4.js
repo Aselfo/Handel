@@ -1,23 +1,36 @@
 var game_canvas;							//Zeichenfläche der Spielelemente(Untere Zeichenfläche)
 var ui_canvas;								//Zeichenfläche der UI_Elemente(Mittlere Zeichenfläche)
 var popup_canvas;							//Zeichenfläche für Popup_Fenster und Mouseover Tooltips(Obere Zeichenfläche)
+var buffer_canvas;							//Zeichenfläche für Popup_Fenster und Mouseover Tooltips(Obere Zeichenfläche)
+var raw_buffer_canvas;
 var game = new Game();						//Instanz des Spiels
 var head_bar;								//Instanz der Kopfzeile
 var windows = [];							//Array mit den Instanzen der Fenster
 
-var mouse_over_tooltip = new Tooltip(); 				//Fenster für mousover tooltips
-var popup_message = new Popup_Message();				//Fenster für Popup Nachrichten
-var confirm_request_message;	//Fenster für Bestätigungsabfragen
+var mouse_over_tooltip; 	//Fenster für mousover tooltips
+var popup_message;	//Fenster für Popup Nachrichten
+var confirm_request_message;				//Fenster für Bestätigungsabfragen
+var help_screen;
+var tutorial_script = null;
 
-var popup_message_visible = false;						//Flag ob das Popupfenster gerade sichtbar ist
+var popup_message_visible = false;			//Flag ob das Popupfenster gerade sichtbar ist
 
 //Variablen der Maus- und Sichtfeldbewegung
 var actual_window = 0;					//Angabe welches Fenster gerade aktiv ist
 var mpos_x = 0;							//X Position der Maus
 var mpos_y = 0;							//Y Position der Maus
+var old_mpos_x = 0;						//Alte X Position der Maus (für dragg and dropp Zwecke)
+var old_mpos_y = 0;						//Alte Y Position der Maus (für dragg and dropp Zwecke)
 
-var default_focus;						//default Objekt falls die Maus auf keinem anderen liegt (gegen nullpointer Probleme)
+var move_view = false;					//Flag ob das Sichtfeld sich beim scrollen bewegen soll
+var view_moved = false;
+
+var default_focus = new Default_Object();	//default Objekt falls die Maus auf keinem anderen liegt (gegen nullpointer Probleme)
 var focus_object						//Objekt auf dem die Maus gerade liegt;
+var selected_object						//für Objekte bei denen ein einfaches mouseover nicht reichen soll;
+var wheel_focus
+
+var tutorial_mode = 0;
 
 //Spielvariablen
 var shop_field = [];
@@ -26,8 +39,9 @@ var storage = [];						//Array der Lagerstacks
 
 //Spieldatenbanken
 var existing_wares = []; 				//Liste aller Existierenden Güter und ihrer Eigenschaften
-var existing_funiture = []				//Liste aller Existierenden Einrichtungsgegenständen und ihrer Eigenschaften
-var existing_customers = []				//Liste aller Existierenden Kunden und ihrer vorlieben
+var existing_rooms = [];				//Liste aller Existierenden Raumarten
+var existing_funiture = [];				//Liste aller Existierenden Einrichtungsgegenständen und ihrer Eigenschaften
+var existing_customers = [];			//Liste aller Existierenden Kunden und ihrer vorlieben
 
 
 var money = 0;							//Momentan vorhandenes Geld
@@ -37,20 +51,15 @@ var free_worker = 0;
 //----------------------------Mouse Listener--------------------------------------------
 //Funktion die aufgerufen wird wenn sich die Maus innerhalb des Wrappers bewegt.
 var mouse_over_listener = function(event){
-	if(!confirm_request_message.mouse_over()){
-		if(actual_window > 0){
-			var rect = event.target.getBoundingClientRect();
-			mpos_x = event.clientX - rect.left;
-			mpos_y = event.clientY - rect.top;
+	wheel_focus = default_focus;
+	if(!confirm_request_message.mouse_over() && !help_screen.mouse_over() && !popup_message.mouse_over()){
+		var rect = event.target.getBoundingClientRect();
+		old_mpos_x = mpos_x;
+		old_mpos_y = mpos_y;
+		mpos_x = event.clientX - rect.left;
+		mpos_y = event.clientY - rect.top;
+		if(!head_bar.mouse_over()){
 			windows[actual_window].mouse_over();
-		}
-		else{
-			var rect = event.target.getBoundingClientRect();
-			var old_x = mpos_x;
-			var old_y = mpos_y;
-			mpos_x = event.clientX - rect.left;
-			mpos_y = event.clientY - rect.top;
-			windows[actual_window].mouse_over(old_x - mpos_x, old_y - mpos_y);
 		}
 	}
 	else{
@@ -62,44 +71,66 @@ var mouse_over_listener = function(event){
 
 //Funktion die aufgerufen wird wenn der Mausbutton innerhalb des Wrappers gedrückt wird.
 var mouse_down_listener = function(event){
-	windows[actual_window].mouse_down();
+	move_view = true;
+	focus_object.mouse_down();
 }
 
 //Funktion die aufgerufen wird wenn der Mausbutton innerhalb des Wrappers losgelassen wird.
 var mouse_up_listener = function(event){
-	if(popup_message_visible){
-		next_message();
+	move_view = false;
+	
+	if(view_moved){
+		view_moved = false;
 	}
 	else{
-		windows[actual_window].mouse_up();
-		windows[actual_window].mouse_over(0, 0);
+		if(selected_object != default_focus && focus_object != selected_object){
+			selected_object.unselect();
+		}
+		focus_object.mouse_up();
 	}
+}
+
+//Funktion die aufgerufen wird wenn das Mausrad benutzt wird.
+var mouse_wheel_listener = function(event){
+	if(event.detail != 0){
+		wheel_focus.mouse_wheel(event, event.detail);
+	}
+	else{
+		wheel_focus.mouse_wheel(event, event.deltaY);
+	}
+}
+
+//Funktion die aufgerufen wird wenn eine Taste gedrückt wird.
+var key_press_listener = function(event){
+	selected_object.key_press(event);
+}
+
+var key_down_listener = function(event){
+	selected_object.key_down(event);
 }
 
 //Zeigen einer Popup_Message
-var show_message = function(message){
-	popup_message.add_message(message);
-}
-
-var next_message = function(){
-	popup_message.next_message();
+var show_message = function(message, activ_button){
+	popup_message.add_message(message, activ_button);
 }
 
 function Game(){
-	this.draw_window = function(){
+	
+	this.draw_scene = function(){
 		//zeichne das Gesammte Bild neu
-		head_bar.draw_head_bar();
-		head_bar.update_money(0);
-		head_bar.update_workforce(0, 0);
 		windows[actual_window].draw_game_canvas();
 		windows[actual_window].draw_ui_canvas();
+		head_bar.draw_element();
+		head_bar.update_money(0);
+		head_bar.update_workforce(0, 0);
 	}
 	
 	//Erzeige Funiture Objekt und Speichert es im Array
 	this.build_funiture = function(room, id, tile){
 		if(room == null){
 			if(id == 0){
-				tile.funiture = new Funiture(room, id, tile);
+				tile.funiture = new Funiture(tile.own_ui.x, tile.own_ui.y, room, id, tile);
+				tile.own_ui.scroll_position(tile.own_ui.scroll_x, tile.own_ui.scroll_y);
 				this.upgrade_to_wall(tile.funiture);
 			}
 			else{
@@ -108,25 +139,27 @@ function Game(){
 			tile.wall_construcktable();
 		}
 		else if(room.kind_of_room == 1){
-			tile.funiture = new Funiture(room, id, tile);
+			tile.funiture = new Funiture(tile.own_ui.x, tile.own_ui.y, room, id, tile);
+			tile.own_ui.scroll_position(tile.own_ui.scroll_x, tile.own_ui.scroll_y);
 			tile.funiture.pictur_x = id * 75
 			tile.funiture.pictur_y = room.kind_of_room * 75;
 			this.upgrade_to_storage(tile.funiture);
 		}
 		else if(room.kind_of_room > 1 && room.kind_of_room < 4){
-			tile.funiture = new Funiture(room, id, tile);
+			tile.funiture = new Funiture(tile.own_ui.x, tile.own_ui.y, room, id, tile);
+			tile.own_ui.scroll_position(tile.own_ui.scroll_x, tile.own_ui.scroll_y);
 			tile.funiture.pictur_x = id * 75
 			tile.funiture.pictur_y = room.kind_of_room * 75;
 			this.upgrade_to_production(tile.funiture);
 		}
 		else if(room.kind_of_room == 4){
-			tile.funiture = new Funiture(room, id, tile);
+			tile.funiture = new Funiture(tile.own_ui.x, tile.own_ui.y, room, id, tile);
+			tile.own_ui.scroll_position(tile.own_ui.scroll_x, tile.own_ui.scroll_y);
 			tile.funiture.pictur_x = id * 75
 			tile.funiture.pictur_y = room.kind_of_room * 75;
 			this.upgrade_to_shop(tile.funiture);
 		}
-		
-		tile.own_ui.draw_image();
+		tile.own_ui.draw_element();
 	}
 	
 	this.upgrade_to_wall = function(funiture){
@@ -190,7 +223,7 @@ function Game(){
 					this.pictur_x = 975;
 				}
 			}
-			this.parent_tile.own_ui.draw_image();
+			this.parent_tile.own_ui.draw_element();
 		}
 		
 		//Zählt wie viele Angrenzende Wände diese Wand hat und gibt diese Zahl zurück
@@ -276,23 +309,22 @@ function Game(){
 		
 	this.upgrade_to_shop = function(funiture){
 		
-		funiture.new_product = null;
 		funiture.product_quantity = 0;
 		funiture.sell_price = 0;
 		funiture.sold = false;
 		
-		funiture.draw_image = function(x, y){
+		funiture.draw_element = function(x, y){
 			//Zeichnet das Objekt wenn es nicht gerade im bau ist
 			if(this.action_id == 0){
-				game_canvas.drawImage(image_repository.funiture,this.pictur_x, this.pictur_y, 75, 75, x, y, 75, 75);
+				game_canvas.drawImage(image_repository.funiture,this.pictur_x, this.pictur_y, 75, 75, this.x - this.scroll_x, this.y - this.scroll_y, 75, 75);
 			}
 			else if(this.action_id > 1){
-				game_canvas.drawImage(image_repository.funiture_at_work,this.pictur_x, this.pictur_y, 75, 75, x, y, 75, 75);
+				game_canvas.drawImage(image_repository.funiture_at_work,this.pictur_x, this.pictur_y, 75, 75,this.x - this.scroll_x, this.y - this.scroll_y, 75, 75);
 			}
 			if(this.sold){
-				game_canvas.drawImage(image_repository.sold_sign, 0, 0, 75, 75, x, y, 75, 75);
+				game_canvas.drawImage(image_repository.sold_sign, 0, 0, 75, 75, this.x - this.scroll_x, this.y - this.scroll_y, 75, 75);
 				this.sold = false;
-				setTimeout(function(parent_tile){parent_tile.draw_image();},1000, this.parent_tile.own_ui);
+				setTimeout(function(parent_tile){parent_tile.draw_element();},1000, this.parent_tile.own_ui);
 			}
 			
 			//Zeichnet die Aktuelle Zeit wenn ein Time läuft
@@ -312,7 +344,7 @@ function Game(){
 				var time_string = hour + ":" + minutes + ":" + seconds;
 				game_canvas.font = "bold 12px Arial";
 				game_canvas.fillStyle = "BLACK";
-				game_canvas.fillText(time_string, (x + 15), (y + 65));
+				game_canvas.fillText(time_string, (this.x - this.scroll_x + 15), (this.y - this.scroll_y + 65));
 			}
 		}
 		
@@ -346,10 +378,10 @@ function Game(){
 					this.new_product = null;
 					this.product_quantity = 0;
 					this.sell_price = 0;
-					this.parent_tile.own_ui.draw_image();
+					this.parent_tile.own_ui.draw_element();
 					break;
 				}
-				this.parent_tile.own_ui.draw_image();
+				this.parent_tile.own_ui.draw_element();
 			}
 			return left;
 		}
@@ -359,22 +391,20 @@ function Game(){
 			this.action_id = 2;
 			this.new_product = ware;
 			this.sell_price = price;
-			this.parent_tile.own_ui.draw_image();
+			this.parent_tile.own_ui.draw_element();
 		}
 	
 		funiture.abort_action = function(){
-			game.store_ware(this.new_product, 1)
 			this.action_id = 0;
 			this.new_product = null;
 			this.product_quantity = 0;
 			this.sell_price = 0;
-			this.parent_tile.own_ui.draw_image();
+			this.parent_tile.own_ui.draw_element();
 		}
 	}
 	
 	this.upgrade_to_production = function(funiture){
 		
-		funiture.new_product = null;
 		funiture.product_quantity = 0;
 		funiture.production_pause = false;
 		
@@ -411,6 +441,9 @@ function Game(){
 					else if(this.product_quantity < 0){
 						this.start_production(this.new_product);
 					}
+					else{
+						this.new_product = null;
+					}
 				}
 				else{
 					this.production_pause = true;
@@ -432,37 +465,37 @@ function Game(){
 	this.set_funiture = function(room, id, tile){
 		if(room == null){
 			if(id == 0){
-				tile.funiture = new Funiture(room, id, tile);
+				tile.funiture = new Funiture(tile.own_ui.x, tile.own_ui.y, room, id, tile);
 				this.upgrade_to_wall(tile.funiture);
 			}
 			else{
-				tile.funiture = new Funiture(room, id, tile);
+				tile.funiture = new Funiture(tile.own_ui.x, tile.own_ui.y, room, id, tile);
 				this.upgrade_to_wall(tile.funiture);
 				this.upgrade_to_door(tile.funiture);
 			}
 		}
 		else if(room.kind_of_room == 1){
-			tile.funiture = new Funiture(room, id, tile);
+			tile.funiture = new Funiture(tile.own_ui.x, tile.own_ui.y, room, id, tile);
 			tile.funiture.pictur_x = id * 75
 			tile.funiture.pictur_y = room.kind_of_room * 75;
 			this.upgrade_to_storage(tile.funiture);
 			this.finish_construction(tile.funiture);
 		}
 		else if(room.kind_of_room > 1 && room.kind_of_room < 4){
-			tile.funiture = new Funiture(room, id, tile);
+			tile.funiture = new Funiture(tile.own_ui.x, tile.own_ui.y, room, id, tile);
 			tile.funiture.pictur_x = id * 75
 			tile.funiture.pictur_y = room.kind_of_room * 75;
 			this.upgrade_to_production(tile.funiture);
 		}
 		else if(room.kind_of_room == 4){
-			tile.funiture = new Funiture(room, id, tile);
+			tile.funiture = new Funiture(tile.own_ui.x, tile.own_ui.y, room, id, tile);
 			tile.funiture.pictur_x = id * 75
 			tile.funiture.pictur_y = room.kind_of_room * 75;
 			this.upgrade_to_shop(tile.funiture);
 		}
 		tile.funiture.time_left = 0;
 		tile.funiture.room = tile.room;
-		tile.own_ui.draw_image();
+		tile.own_ui.draw_element();
 	}
 	
 	//Aktiviert Seiteneffecte von Funitur nach vertigstellung wenn sie welche besitzen
@@ -470,7 +503,7 @@ function Game(){
 		if(source.room.kind_of_room == 1){
 			storage = storage.concat(source.storag_stacks);
 			if(actual_window != 0){
-				game.draw_window();
+				game.draw_scene();
 			}
 		}
 	}
@@ -488,8 +521,7 @@ function Game(){
 				var offer = [];
 				for(i in this.member){
 					if(this.member[i].funiture != null && this.member[i].funiture.new_product != null){
-						offer.push(this.member[i].funiture);	
-					}
+						offer.push(this.member[i].funiture);						}
 				}
 				return offer;
 			}
@@ -528,12 +560,11 @@ function Game(){
 						this.member[i].funiture.new_product = null;
 						this.member[i].funiture.product_quantity = 0;
 						this.member[i].funiture.sell_price = 0;
-						this.member[i].funiture.parent_tile.own_ui.draw_image();
+						this.member[i].funiture.parent_tile.own_ui.draw_element();
 					}
 				}
 			}
 		}
-		
 		else if(new_room_id > 1){
 			
 		}
@@ -591,7 +622,7 @@ function Game(){
 				object.unhighlight();
 			});
 		}
-		tile.own_ui.draw_image();
+		tile.own_ui.draw_element();
 	}
 
 	//Löscht einen Raum
@@ -613,7 +644,7 @@ function Game(){
 		}
 		else{
 			tile.funiture = null;
-			tile.own_ui.draw_image();
+			tile.own_ui.draw_element();
 		}
 	}
 	
@@ -631,7 +662,7 @@ function Game(){
 			}
 			this.storage_deletable(tile.funiture, true);
 			tile.funiture = null;
-			tile.own_ui.draw_image();
+			tile.own_ui.draw_element();
 		}
 	}
 	
@@ -782,7 +813,8 @@ function Game(){
 	}
 	
 	//Lagert eine produzierte oder gekaufte Ware ein
-	this.store_ware = function(ware_category, ware_id, amount){
+	this.store_ware = function(ware_category, ware_id , amount){
+
 		var place_found = false;
 		var new_values = [];
 		var new_ids = [];
@@ -824,7 +856,7 @@ function Game(){
 			}
 		}
 		if(!place_found){
-			//show_message("Lager voll");
+			show_message("Lager voll");
 		}
 		else{
 			for(var i = 0; i < storage.length; i++){
@@ -889,32 +921,39 @@ function Game(){
 				everything_found = false;
 			}
 		}
+
 		return everything_found;
 	}
 
 	//Holt Waren aus dem Lager
 	this.get_ware_from_store = function(ware_array){
-
-		var everything_found = this.on_stock(ware_array);
+		
+		var backup_array = [];
+		
+		for(i in ware_array){
+			backup_array[i] = Array.from(ware_array[i]);
+		}
+		var everything_found = this.on_stock(backup_array);
+		
 		if(everything_found){
-			for(var i = 0; i < ware_array.length; i++){
+			for(var i = 0; i < backup_array.length; i++){
 				for(var j = 0; j < storage.length; j++){
-					if(storage[j].ware != null && storage[j].ware.category_id == ware_array[i][0] && storage[j].ware.id == ware_array[i][1]){
-						if(storage[j].stored_amount > ware_array[i][2]){
-							storage[j].stored_amount -= ware_array[i][2];
-							ware_array[i][2] = 0;
+					if(storage[j].ware != null && storage[j].ware.category_id == backup_array[i][0] && storage[j].ware.id == backup_array[i][1]){
+						if(storage[j].stored_amount > backup_array[i][2]){
+							storage[j].stored_amount -= backup_array[i][2];
+							backup_array[i][2] = 0;
 							break;
 						}
-						else if(storage[j].stored_amount = ware_array[i][2]){
-							storage[j].stored_amount -= ware_array[i][2];
+						else if(storage[j].stored_amount == backup_array[i][2]){
+							storage[j].stored_amount -= backup_array[i][2];
 							storage[j].ware = null;
-							ware_array[i][2] = 0;
+							backup_array[i][2] = 0;
 							break;
 						}
 						else{
+							backup_array[i][2] -= storage[j].stored_amount;
 							storage[j].stored_amount = 0;
 							storage[j].ware = null;
-							ware_array[i][2] -= storage[j].stored_amount;
 						}
 					}
 				}
@@ -945,24 +984,37 @@ function Game(){
 
 //wechselt zwischen verschiedenen fenstern
 function switch_window(window_id){
-	actual_window = window_id;
-	game.draw_window();
+	if(actual_window != window_id){
+		windows[window_id].set_default();
+		actual_window = window_id;
+		focus_object.mouse_out();
+		focus_object = default_focus;
+		game.draw_scene();
+	}
+}
+
+//Erstellt die Liste aller Existierenden Räume
+function define_existing_rooms(){
+	existing_rooms[0] = new Room_Data(1,"Lager",		75 , 0, "Ein Lager für Rohstoffe, Halbfabrikate und Endprodukte. Jedes Geschäft braucht ein Lager.");
+	existing_rooms[1] = new Room_Data(2,"Schmiede",		150, 0, "Eine Schmiede für Waffen, Rüstungen und Metallteile.");
+	existing_rooms[2] = new Room_Data(3,"Alchemilabor",	225, 0, "Ein Laboratorium für Alchemie- und Magiewaren.");
+	existing_rooms[3] = new Room_Data(4,"Laden",		300, 0, "Ein Einzelhandelsladen um Waren an Privatkunden zu verkaufen.");
 }
 
 //Erstellt die Liste aller Existierender Einrichtungsgegenstände
 function define_existing_funiture(){
 	existing_funiture[0] = []
-	existing_funiture[0][0] = new Funiture_Data("Wand", "Eine Soliede Wand zur Raumteilung", 10, 2, []);
-	existing_funiture[0][1] = new Funiture_Data("Tür", "Eine Tür", 10, 2, []);
+	existing_funiture[0][0] = new Funiture_Data(0, "Wand", "Eine Soliede Wand zur Raumteilung", 10, 2, [], 0, 0);
+	existing_funiture[0][1] = new Funiture_Data(1, "Tür", "Eine Tür", 10, 2, [], 0, 0);
 	existing_funiture[1] = []
-	existing_funiture[1][0] = new Funiture_Data("Regal", "Ein Regal das bis zu 5 Einheiten von 4 verschiedenen Waren fassen kann", 50, 5, [4, 5]);
-	existing_funiture[1][1] = new Funiture_Data("Kiste", "Eine Kiste die bis zu 30 Einheiten einer Ware fassen kann", 10, 5, [1, 30]);
+	existing_funiture[1][0] = new Funiture_Data(0, "Regal", "Ein Regal das bis zu 5 Einheiten von 4 verschiedenen Waren fassen kann", 50, 5, [4, 5], 0, 75);
+	existing_funiture[1][1] = new Funiture_Data(1, "Kiste", "Eine Kiste die bis zu 30 Einheiten einer Ware fassen kann", 10, 5, [1, 30], 75, 75);
 	existing_funiture[2] = []
-	existing_funiture[2][0] = new Funiture_Data("Ambos", "Ein Schmiedeambos für Metalarbeiten", 50, 5, [[1, 0], [2, 0],[2, 1]]);
+	existing_funiture[2][0] = new Funiture_Data(0, "Ambos", "Ein Schmiedeambos für Metalarbeiten", 50, 5, [[1, 0], [2, 0],[2, 1]], 0, 150);
 	existing_funiture[3] = []
-	existing_funiture[3][0] = new Funiture_Data("Labortisch", "Ein Labortisch zum Tränke brauen", 50, 300, [[5, 0],[5, 1],[5, 2],[5, 3]]);
+	existing_funiture[3][0] = new Funiture_Data(0, "Labortisch", "Ein Labortisch zum Tränke brauen", 50, 5, [[5, 0],[5, 1],[5, 2],[5, 3]], 0, 225);
 	existing_funiture[4] = []
-	existing_funiture[4][0] = new Funiture_Data("Aussteller", "Ein Tisch um Waren zum verkauf auszustellen", 50, 5, []);
+	existing_funiture[4][0] = new Funiture_Data(0, "Aussteller", "Ein Tisch um Waren zum verkauf auszustellen", 50, 5, [], 0, 300);
 }
 
 //Erstellt die Liste aller Existierender Waren
@@ -977,7 +1029,7 @@ function define_existing_wares(){
 	existing_wares[1] = [];
 	existing_wares[1][0] = new Ware(1, 0, "Kettenglieder", 30, 15, "Metallringe für Ketten oder Kettenhemden", [[0, 1, 1]], 20);
 	existing_wares[2] = [];
-	existing_wares[2][0] = new Ware(2, 0, "Helm", 300, 150, "Ein Einfacher Eisenhelm. Er wird in der Schmiede hergestellt und ist in jedem Rüstungsladen erhältlich", [[0 , 1, 3]], 60);
+	existing_wares[2][0] = new Ware(2, 0, "Helm", 300, 150, "Ein Einfacher Eisenhelm. Er wird in der Schmiede hergestellt und ist in jedem Rüstungsladen erhältlich", [[0 , 1, 3]], 5);
 	existing_wares[2][1] = new Ware(2, 1, "Kettenhemd", 350, 175, "Ein feingliedrieges Kettenhemd", [[0, 0, 1],[1, 0,2]], 60);
 	existing_wares[3] = [];
 	existing_wares[3][0] = new Ware(3, 0, "Heilkraut", 10, 5, "Ein Bitters Kraut mit Gelben Blüten", [[null, null, 0]], 10);
@@ -993,6 +1045,7 @@ function define_existing_wares(){
 	existing_wares[5][3] = new Ware(5, 3, "Gegengift", 120, 60, "Ein Gegenmittel für die meisten gewöhnlichen Gifte", [[3, 0, 2],[3, 3, 1]], 30);
 }	
 
+//Erstellt die Liste aller Existierender Kundentüpen
 function define_existing_customer(){
 	existing_customers[0] = new Customer_Data(0, [[2, 0, 0.2, 0.5, 0.6],[2, 1, 0.2, 1.0, 0.6],[5, 0, 0.2, 1.4, 0.6]]);
 	existing_customers[1] = new Customer_Data(1, [[5, 0, 0.1, 2.3, 0.5],[5, 2, 0.1, 1.3, 0.5]]);
@@ -1002,8 +1055,10 @@ function define_existing_customer(){
 //Läd Speicherdaten
 function load_data(){
 	var save_data = document.cookie;
+	console.log(save_data);
 	//Wenn keine Daten vorhanden dann default start zustand
-	if(save_data == ""){
+	//save_data == ""
+	if(save_data == "" || save_data.substring(0,1) == "1"){
 		var sice_x = 7;
 		var sice_y = 6;
 			
@@ -1056,6 +1111,8 @@ function load_data(){
 		windows[0].timer_tick(0);
 		head_bar.update_money(1000);
 		head_bar.update_workforce(0, 0);
+		tutorial_script = new Tutorial_Script();
+		tutorial_mode = 1;
 	}
 	//Ansonsten Daten aus Cookie laden
 	else{
@@ -1072,15 +1129,16 @@ function load_data(){
 			border_top = 0;
 		}
 		save_data = save_data.split(":");
-		head_bar.update_money(parseInt(save_data[0]));
-		head_bar.update_workforce(parseInt(save_data[1]), parseInt(save_data[1]));
 		
-		var room_data = save_data[2].split("|");
+		head_bar.update_money(parseInt(save_data[1]));
+		head_bar.update_workforce(parseInt(save_data[2]), parseInt(save_data[2]));
+		
+		var room_data = save_data[3].split("|");
 		for(i in room_data){
 			game.build_room([], room_data[i]);
 		}
 		
-		var all_field_data = save_data[3].split("|");
+		var all_field_data = save_data[4].split("|");
 		var field_data;
 		var x = 0;
 		var y = 0;
@@ -1158,7 +1216,7 @@ function load_data(){
 		
 		windows[0].timer_tick(0);
 		
-		var all_storage_data = save_data[4].split("|");
+		var all_storage_data = save_data[5].split("|");
 		var storage_data;
 		for(i in all_storage_data){
 			if(all_storage_data[i] != ""){
@@ -1167,14 +1225,15 @@ function load_data(){
 				storage[i].stored_amount = parseInt(storage_data[2]);
 			}
 		}
+		if(parseInt(save_data[0])){
+			tutorial_script = new Tutorial_Script();
+			tutorial_mode = parseInt(save_data[0]);
+		}
 	}
 }
 
 function init(){
-	document.getElementById("wrapper").addEventListener("mousemove",mouse_over_listener,false);
-	document.getElementById("wrapper").addEventListener("mousedown",mouse_down_listener,false);
-	document.getElementById("wrapper").addEventListener("mouseup",mouse_up_listener,false);
-	addEventListener("unload", close_game, false);
+	
 	game_canvas = document.getElementById('game_canvas');
 	if(game_canvas.getContext){
 		game_canvas = game_canvas.getContext('2d');
@@ -1187,10 +1246,18 @@ function init(){
 	if(popup_canvas.getContext){
 		popup_canvas = popup_canvas.getContext('2d');
 	}
-
-	confirm_request_message = new Confirm_Request();
+	raw_buffer_canvas = document.getElementById('buffer_canvas');
+	if(raw_buffer_canvas.getContext){
+		buffer_canvas = raw_buffer_canvas.getContext('2d');
+	}
 	
-	define_existing_wares();	
+	mouse_over_tooltip = new Tooltip(); 	
+	popup_message = new Popup_Message();	
+	confirm_request_message = new Confirm_Request();
+	help_screen = new Help_Screen()
+	
+	define_existing_wares();
+	define_existing_rooms()	
 	define_existing_funiture();
 	define_existing_customer();
 	
@@ -1203,13 +1270,27 @@ function init(){
 	windows[2].init_window();
 	
 	load_data();
-	default_focus = new UI_Button(1000, 0, 0, windows[0], "");
-	focus_object = default_focus
-	game.draw_window();
+	
+	document.getElementById("wrapper").addEventListener("mousemove",mouse_over_listener,false);
+	document.getElementById("wrapper").addEventListener("mousedown",mouse_down_listener,false);
+	document.getElementById("wrapper").addEventListener("mouseup",mouse_up_listener,false);
+	// IE, Chrome, Safari, Opera
+	document.getElementById("wrapper").addEventListener("mousewheel", mouse_wheel_listener, false);
+	// Firefox
+	document.getElementById("wrapper").addEventListener("DOMMouseScroll", mouse_wheel_listener, false);
+	addEventListener("keypress",key_press_listener,false);
+	addEventListener("keydown",key_down_listener,false);
+	addEventListener("unload", close_game, false);
+	
+	focus_object = default_focus;
+	selected_object = default_focus;
+	wheel_focus = default_focus;
+	game.draw_scene();
 }
 
 function close_game(){
-	var cookie = 1000 + ":" + workforce + ":";
+	var cookie = "" + tutorial_mode + ":";
+	cookie = cookie + money + ":" + workforce + ":";
 	for(var i = 0; i < rooms.length; i++){
 		cookie = cookie + rooms[i].kind_of_room + "|";
 	}
